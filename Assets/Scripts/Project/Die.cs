@@ -21,35 +21,175 @@ public class Die : MonoBehaviour, IComparable {
 
     bool moving;
 
+    [Range(0f, 1f)]
+    public float validMargin = 0.45f;
+    Vector3 localHitNormalized;
+
+    bool localHit
+    {
+        get
+        {
+            Ray ray = new Ray(transform.position + (new Vector3(0, 2, 0) * transform.localScale.magnitude), Vector3.up * -1);
+            RaycastHit hit = new RaycastHit();
+
+            if (GetComponent<Collider>().Raycast(ray, out hit, 3 * transform.localScale.magnitude))
+            {
+                localHitNormalized = transform.InverseTransformPoint(hit.point.x, hit.point.y, hit.point.z).normalized;
+                return true;
+            }
+            return false;
+        }
+    }
+
+    bool rolling
+    {
+        get
+        {
+            return !(GetComponent<Rigidbody>().velocity.sqrMagnitude < .1f &&
+                     GetComponent<Rigidbody>().angularVelocity.sqrMagnitude < .1f);
+        }
+    }
+
+
     // Use this for initialization
     void Start () {
-        rollDie();
+        //rollDie();
         setDieColor();
     }
 	
 	// Update is called once per frame
 	void Update () {
-		if (Input.GetMouseButtonDown(1)) {
-			if (Input.GetKeyDown("r")) {
-				rollDie();
-			}
-		}
+
+        if (!rolling && !moving && localHit)
+            updateValue();
+
 	}
     public int getSideValue(Side.valueTypes vt) {
         sideStatValue = card.getSide(dieValue).getStat(vt);
         return sideStatValue;
     }
 
-    // Requires collider
-    void OnMouseDown() {
-
-		//GetComponent<Renderer>().materials[0].color = dieColor;
-		
-	}
-
-    public void moveDie(Transform z)
+    public void updateValue()
     {
-        Transform dP = z.Find("Dice").transform;
+        dieValue = 0;
+        float delta = 1;
+        int side = 1;
+
+        Vector3 testHitVector;
+
+        do
+        {
+            testHitVector = HitVector(side);
+            if (testHitVector != Vector3.zero)
+            {
+                if (valid(localHitNormalized.x, testHitVector.x) &&
+                    valid(localHitNormalized.y, testHitVector.y) &&
+                    valid(localHitNormalized.z, testHitVector.z))
+                {
+                    float nDelta = Mathf.Abs(localHitNormalized.x - testHitVector.x) +
+                                    Mathf.Abs(localHitNormalized.y - testHitVector.y) +
+                                    Mathf.Abs(localHitNormalized.z - testHitVector.z);
+                    if (nDelta < delta)
+                    {
+                        dieValue = side;
+                        delta = nDelta;
+
+                    }
+
+                }
+            }
+            side++;
+        } while (testHitVector != Vector3.zero);
+    }
+
+    bool valid(float t, float v)
+    {
+        if (t > (v - validMargin) && t < (v + validMargin))
+            return true;
+        return false;
+    }
+    
+    void OnMouseOver() {
+
+        if (Input.GetMouseButtonDown(1))
+        {
+            //if (Input.GetKeyDown("r"))
+            //{
+                rollDie();
+            //}
+        }
+    }
+
+    public void rollDie()
+    {
+        Transform spawn = GameObject.Find("area" + GameLogic.instance.playerLogic.currentPlayer().getPlayerName() + "/zoneRoll/rollPlayer").transform;
+        Vector3 force = getForce(spawn);
+
+        moveDie(spawn);
+
+        
+        // Random Rotation
+        this.transform.Rotate(new Vector3(  UnityEngine.Random.value * 360,
+                                            UnityEngine.Random.value * 360,
+                                            UnityEngine.Random.value * 360));
+
+        // Add Force
+        this.GetComponent<Rigidbody>().AddForce(force, ForceMode.Impulse);
+
+        // Add Random Torque
+        // -50
+        float[] tV = GameLogic.instance.rollValues.tV;
+        this.GetComponent<Rigidbody>().AddTorque(new Vector3(tV[0] * UnityEngine.Random.value * transform.localScale.magnitude,
+                                                             tV[1] * UnityEngine.Random.value * transform.localScale.magnitude,
+                                                             tV[2] * UnityEngine.Random.value * transform.localScale.magnitude), ForceMode.Impulse);
+    }
+
+    Vector3 getForce(Transform t)
+    {
+        /*
+         2  +  7
+        .5f +  4
+        -2  + -3
+        -35     20
+        */
+        float[] f1V = GameLogic.instance.rollValues.f1V;
+        float[] f2V = GameLogic.instance.rollValues.f2V;
+        float[] lV = GameLogic.instance.rollValues.lV;
+
+        Transform rT = GameObject.Find("area" + GameLogic.instance.playerLogic.currentPlayer().getPlayerName() + "/zoneServicable/Dice").transform;
+
+        Vector3 rollTarget = Vector3.zero + new Vector3(rT.position.x * UnityEngine.Random.value,
+                                                        f1V[1] + f2V[0] * UnityEngine.Random.value,
+                                                        rT.position.z * UnityEngine.Random.value);
+        /*
+        Vector3 rollTarget = Vector3.zero + new Vector3(f1V[0] + f2V[0] * UnityEngine.Random.value,
+                                                        f1V[1] + f2V[0] * UnityEngine.Random.value,
+                                                        f1V[2] + f2V[0] * UnityEngine.Random.value);
+        */
+        return Vector3.Lerp(t.position, rollTarget, 1).normalized * (lV[0] - UnityEngine.Random.value * lV[1]);
+    }
+
+
+    public void rollDieValue()
+    {
+        dieValue = UnityEngine.Random.Range(1, 7);
+
+        //dieColorValue = (eDieColor)(dieValue - 1);
+        setDieColor();
+
+        Debug.Log("Die rolled: " + dieValue);
+    }
+
+
+    public void moveDie(Zone z)
+    {
+        this.GetComponent<Draggable3D_Plane>().transform.SetParent(z.transform.parent.Find("Dice"));
+        positionDie();
+    }
+
+    public void moveDie(Transform t)
+    {
+        Transform dP = t.parent.Find("Dice").transform;
         this.GetComponent<Draggable3D_Plane>().transform.SetParent(dP);
         positionDie();
     }
@@ -57,8 +197,8 @@ public class Die : MonoBehaviour, IComparable {
     void positionDie()
     {
         float offsetX = UnityEngine.Random.Range(-.05f, .05f);
-        float offsetY = UnityEngine.Random.Range(-.05f, .05f);
-        this.transform.localPosition = new Vector3(offsetX, offsetY, -.01f);
+        float offsetZ = UnityEngine.Random.Range(-.05f, .05f);
+        this.transform.localPosition = new Vector3(offsetX, 0f, offsetZ);
     }
 
     void OnTriggerStay(Collider other)
@@ -87,14 +227,6 @@ public class Die : MonoBehaviour, IComparable {
     }
     */
     
-	public void rollDie() {
-        dieValue = UnityEngine.Random.Range(1, 7);
-
-        //dieColorValue = (eDieColor)(dieValue - 1);
-        setDieColor();
-
-        Debug.Log("Die rolled: " + dieValue);
-	}
 
 
     public void setDieColor()
@@ -115,7 +247,19 @@ public class Die : MonoBehaviour, IComparable {
         GetComponent<Renderer>().materials[1].color = colorInside;
     }
 
-
+    public Vector3 HitVector(int side)
+    {
+        switch (side)
+        {
+            case 1: return new Vector3(0F, 0F, 1F);
+            case 2: return new Vector3(1F, 0F, 0F);
+            case 3: return new Vector3(0F, -1F, 0F);
+            case 4: return new Vector3(0F, 1F, 0F);
+            case 5: return new Vector3(-1F, 0F, 0F);
+            case 6: return new Vector3(0F, 0F, -1F);
+        }
+        return Vector3.zero;
+    }
     /*
     Color getColor() { switch (dieColorValue) {
             case eDieColor.RED: return Color.red;

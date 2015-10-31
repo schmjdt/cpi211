@@ -9,7 +9,7 @@ public class Scoreboard : MonoBehaviour {
     void Start()
     {
         //buildMesh(GameLogic.instance);
-        buildMesh(GameLogic.instance.gameLayout.scoreArea.mesh);
+        //buildMesh(GameLogic.instance.gameLayout.scoreArea.mesh);
     }
 
     // Update is called once per frame
@@ -33,6 +33,6 @@ public class Scoreboard : MonoBehaviour {
     public void createTexture()
     {
         texInfo = TextureBuilder.ChopUpAllTextures(texInfo);
-        GetComponent<Renderer>().material.mainTexture = TextureBuilder.BuildTexture(texInfo); ;
+        //GetComponent<Renderer>().material.mainTexture = TextureBuilder.BuildTexture(texInfo); ;
     }
 }

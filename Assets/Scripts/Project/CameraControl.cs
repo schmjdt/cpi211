@@ -19,7 +19,7 @@ public class CameraControl : MonoBehaviour
 
     Quaternion origRot;
     Vector3 origPot;
-    bool zooming, usedButton;
+    bool zooming, usedButton, followingDragged;
 
     float count = 0, lastValue = 0;
 
@@ -54,7 +54,7 @@ public class CameraControl : MonoBehaviour
                 RaycastHit hit;
                 if (Physics.Raycast(ray, out hit))
                 {
-                    if (hit.transform.GetComponent<Zone>())
+                    if (hit.transform.GetComponent<Zone>() || hit.transform.GetComponent<Die>())
                         // Depending on which zone mouse is hovered on
                         /*
                         if (hit.transform.name == "Player1" ||
@@ -109,6 +109,18 @@ public class CameraControl : MonoBehaviour
 
         if (nextCameraPosition != null)
             MoveCamera();
+
+        if (GameLogic.instance.draggedObject != null && playerCamera.fieldOfView == 10)
+        {
+            followingDragged = true;
+            transform.LookAt(GameLogic.instance.draggedObject.transform);
+        }
+        else
+        {
+            if (followingDragged)
+                resetCamPosition();
+            followingDragged = false;
+        }
     }
 
     public void resetCamPosition()
@@ -120,11 +132,7 @@ public class CameraControl : MonoBehaviour
         playerCamera.fieldOfView = cameraFovMax;  // sanity check
     }
 
-    public void toggleNmoveCam()
-    {
-        togglePlayerCam();
-        MoveCamera();
-    }
+    
 
 	public void togglePlayerCam()
     {

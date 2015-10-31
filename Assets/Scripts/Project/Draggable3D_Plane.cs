@@ -29,7 +29,11 @@ public class Draggable3D_Plane : MonoBehaviour {
     Zone zoneHit;
     // -------------------------------------------------
 
+    void Update()
+    {
 
+        Debug.DrawLine(transform.position, new Vector3(transform.position.x, transform.position.y - 10000f, transform.position.z));
+    }
 
     void OnMouseDown()
     {
@@ -53,11 +57,11 @@ public class Draggable3D_Plane : MonoBehaviour {
                                          transform.position.z);
 
         originalParent = this.transform.parent;
-        placeHolderParent = originalParent.parent;
+        placeHolderParent = originalParent.parent.Find("zoneOutline");
         this.transform.SetParent(this.transform.parent.parent.parent.parent);
 
         //GetComponent<CanvasGroup>().blocksRaycasts = false; 
-        //GetComponent<Rigidbody>().isKinematic = true;
+        GetComponent<Rigidbody>().isKinematic = true;
         GameLogic.instance.gameLayout.checkZoneColor();
     }
 
@@ -100,7 +104,7 @@ public class Draggable3D_Plane : MonoBehaviour {
                     }
                 }
                 else
-                    placeHolderParent = originalParent.parent;
+                    placeHolderParent = originalParent.parent.Find("zoneOutline");
                 GameLogic.instance.gameLayout.checkZoneColor();
             }
 
@@ -117,14 +121,14 @@ public class Draggable3D_Plane : MonoBehaviour {
         if (!canDrag) return;
         Cursor.visible = true; GameLogic.instance.draggedObject = null;
 
-        if (originalParent.parent != placeHolderParent)
+        if (originalParent.parent.Find("zoneOutline") != placeHolderParent)
         {
             // Either the object must match the drop zone OR (IE: weapon slot) 
             //      drop zone is of certain type that allows all objects (IE: discard)
             //Zone p = placeHolderParent.GetComponent<Zone>(); 
             //if (p.typeOfSlot == this.typeOfSlot || p.typeOfSlot == Draggable.Slot.DISCARD)
 
-            this.originalParent = placeHolderParent.Find("Dice").transform;
+            this.originalParent = placeHolderParent.parent.Find("Dice");
             transform.position = new Vector3(transform.position.x,
                                                 transform.position.y - liftOffset,
                                                 transform.position.z);
@@ -139,7 +143,7 @@ public class Draggable3D_Plane : MonoBehaviour {
         this.transform.SetParent(originalParent);
         Debug.Log(this.name + " was dropped on " + originalParent.name);
         //GetComponent<CanvasGroup>().blocksRaycasts = true; 
-        //GetComponent<Rigidbody>().isKinematic = false;
+        GetComponent<Rigidbody>().isKinematic = false;
         GameLogic.instance.gameLayout.checkZoneColor();
     }
 
@@ -159,6 +163,6 @@ public class Draggable3D_Plane : MonoBehaviour {
         }
     }
 
-    public Zone getParentZone() { return originalParent.parent.GetComponent<Zone>(); }
+    public Zone getParentZone() { return originalParent.parent.gameObject.GetComponentInChildren<Zone>(); }
     public GameObject getParentArea() { return originalParent.parent.parent.gameObject; }
 }

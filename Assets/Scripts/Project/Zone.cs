@@ -17,7 +17,8 @@ public class Zone : MonoBehaviour {
 	public int numberItems;
 
     public bool checkOwnColor;
-    
+
+    public Transform diceHolder;
 
 	public Zone(string name) {
 		zoneName = name;
@@ -25,7 +26,8 @@ public class Zone : MonoBehaviour {
 
 	// Use this for initialization
 	void Start () {
-	}
+        //diceHolder = transform.parent.Find("Dice");
+    }
 	
 	// Update is called once per frame
 	void Update () {
@@ -35,6 +37,8 @@ public class Zone : MonoBehaviour {
             checkOwnColor = false;
             if (GameLogic.instance.isValidDrop(this))
             {
+                //Zone dZ = 
+                //Debug.Log("Zone: " + dZ.name);
                 if (GameLogic.instance.getDraggedPlaceholder() == this)
                     this.GetComponent<SpriteRenderer>().color = Color.green;
                 else
@@ -52,7 +56,7 @@ public class Zone : MonoBehaviour {
     // HARD: Hard code knowing child of zone will be 'Die'
     public Die[] getZoneDice()
     {
-        return GetComponentsInChildren<Die>();
+        return diceHolder.GetComponentsInChildren<Die>();
     }
 }
 

@@ -15,7 +15,6 @@ public class PlayerLogic
     public int totalPlayers = 2;
     public Player[] players;
 
-    public Transform[] positPlayer1Score;
 
     // Add Market Vars:  # can buy at once (int), if can buy (bool)
 
@@ -34,10 +33,7 @@ public class PlayerLogic
 
             }
 
-            initStep();
-
-            positPlayer1Score = GameObject.Find("Positions/PlayerPositions").GetComponentsInChildren<Transform>();
-            
+            initStep();            
         }
     }
 
@@ -127,17 +123,21 @@ public struct GameState
 [System.Serializable]
 public class GameLayout
 {
-    public ScoreLayout scoreArea;
     public GameArea[] gameAreas;
-    
-    
+
+    public Transform scorePositions;
+    public Transform[] positScores;
+
     public void initLayout()
     {
+        // Init Areas/Zones
         foreach (GameArea item in gameAreas)
         {
-            item.createZones();
-            item.checkZoneColor();
+            item.initZones();
         }
+
+        // Init Scoreboard
+        positScores = scorePositions.GetComponentsInChildren<Transform>();
     }
 
     public void checkZoneColor()
@@ -156,9 +156,17 @@ public class GameLayout
         }
         return null;
     }
-
+    
+    public void gatherDice()
+    {
+        foreach (GameArea area in gameAreas)
+            foreach (GameZone zone in area.areaZones)
+                zone.gatherDice();
+    }
+        
     public Die[] getDice(int a, int z)
     {
+        gameAreas[a].areaZones[z].gatherDice();
         return gameAreas[a].getDice(z);
     }
 
@@ -191,21 +199,30 @@ public class GameLayout
     }
 }
 
+[System.Serializable]
+public class RollValues
+{
+    public float[] tV;
+    public float[] f1V;
+    public float[] f2V;
+    public float[] lV;
+}
+
 
 public class GameLogic : MonoBehaviour
 {
     public static GameLogic instance;
 
     public GameObject card;
-    public Die die;
+    public Die dillydoe;
 
     public GameObject draggedObject = null;
-    public Die dieMoving;
     
     public PlayerLogic playerLogic;
     public GameLayout gameLayout;
     public CardLayout cardLayout;
 
+    public RollValues rollValues;
 
     // Card Mesh
     /*
@@ -221,23 +238,23 @@ public class GameLogic : MonoBehaviour
     {
         Debug.Log("Game Awake()");
         instance = this;
-		//playerLogic = new PlayerLogic();
-		//gameLayout = new GameLayout();
+        //playerLogic = new PlayerLogic();
+        //gameLayout = new GameLayout();
         //cardLayout = new CardLayout();
-		cardLayout.buildMesh();
-        gameLayout.scoreArea.buildMesh();
+
+        Sides.createSides();
+        cardLayout.buildMesh();
+        //gameLayout.gatherDice();
     }
 
     void Start()
     {
+        gameLayout.initLayout();
         GameState.newGame = true;
         {
             Debug.Log("Game Started");
             //createPlayers();
             playerLogic.initPlayers();
-            Sides.createSides();
-            Debug.Log("Size areas: " + gameLayout.gameAreas.Length);
-            gameLayout.initLayout();
             playerLogic.performStep();
             //cardLayout.createTileColors();
         }
@@ -246,8 +263,8 @@ public class GameLogic : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyUp("r"))        rollDice();
-        else if (Input.GetKeyUp("t"))   playerLogic.cycleTurn();
+        //if (Input.GetKeyUp("r"))        rollDice();
+        if (Input.GetKeyUp("t"))   playerLogic.cycleTurn();
         else if (Input.GetKeyUp("p"))   printCards();
         else if (Input.GetKeyUp("m")) adminMoveDie();
         else if (Input.GetKeyUp("i")) adminIncScore();
@@ -292,15 +309,19 @@ public class GameLogic : MonoBehaviour
         }
     }
 
-    public void instantiateDie()
+    public void instantiateDie(Transform t)
     {
         // 'zoneCard3' would be current cards: transform.parent.parent.name
         //		or look go through areaMarket's list of zones looking for <Card>, in which already of Zone's Name
-        Transform dS = GameObject.Find("zoneCard1/Dice").transform;
-        Die d = (Die)Instantiate(die, dS.position, dS.rotation);
-        d.transform.SetParent(dS);
+        //Transform pA = GameObject.Find("areaMarket/zoneM1/Dice").transform;
+        //Transform dS = pA.gameObject.Find("areaPlayer1/zoneSummoned/Dice").transform;
+        
+        Die d = (Die)Instantiate(dillydoe, t.position, Quaternion.identity);
+        d.transform.SetParent(t);
+        d.transform.position = t.position;
+        //d.transform.localPosition = dS.position;
         //d.transform.localScale = new Vector3(.5f, 1.25f, .5f);
-        d.transform.localScale = die.transform.localScale;
+        //d.transform.localScale = die.transform.localScale;
 
     }
 
@@ -368,7 +389,8 @@ public class GameLogic : MonoBehaviour
     {
         Draggable3D_Plane drag = draggedObject.GetComponent<Draggable3D_Plane>();
         if (!drag) return null;
-        return drag.getParentZone();
+        return drag.placeHolderParent.GetComponent<Zone>();
+        //return drag.getParentZone();
     }
 
     public bool isValidDrop(Zone z)
@@ -382,10 +404,11 @@ public class GameLogic : MonoBehaviour
         if (!draggedObject) return false;
         Draggable3D_Plane drag = draggedObject.GetComponent<Draggable3D_Plane>();
         if (!drag) return false;
-        
+
         //Die d = draggedObject.GetComponent<Die>();
         //if (!d) return false;
 
+        return true;
         switch (playerLogic.currentStep)
         {
             case PlayerLogic.eSteps.SCORE:
@@ -504,9 +527,9 @@ public class GameLogic : MonoBehaviour
         }
 
         Transform d = GameObject.Find("token" + playerLogic.players[p].getPlayerName()).transform;
-            d.localPosition = new Vector3(playerLogic.positPlayer1Score[playerLogic.players[p].score + 1].localPosition.x,
+            d.localPosition = new Vector3(gameLayout.positScores[playerLogic.players[p].score + 1].localPosition.x,
                                      d.localPosition.y,
-                                     playerLogic.positPlayer1Score[playerLogic.players[p].score + 1].localPosition.z + mod * UnityEngine.Random.Range(.2f, .8f));
+                                     gameLayout.positScores[playerLogic.players[p].score + 1].localPosition.z + mod * UnityEngine.Random.Range(0f, .01f));
         //}
     }
 
@@ -554,7 +577,7 @@ public class GameLogic : MonoBehaviour
             float offsetY = UnityEngine.Random.Range(-.05f, .05f);
             item.transform.localPosition = new Vector3(offsetX, offsetY, -.01f);
             */
-            item.moveDie(zT);
+            item.moveDie(zT.GetComponentInChildren<Zone>());
         }
 
         adminIncStep();
@@ -578,27 +601,13 @@ public class GameLogic : MonoBehaviour
 [System.Serializable]
 public class GameArea
 {
-    public enum eAreaType { PLAYER, MARKET };
+    public enum eAreaType { PLAYER, MARKET, OTHER };
 
     public GameObject area;
     public GameZone[] areaZones;
     public string areaName;
     public eAreaType areaType;
-
     
-    public GameArea()
-    {
-    }
-
-    /*
-    public GameArea(string n, eAreaType at)
-    {
-        this.name = n;
-        this.areaType = at;
-
-        createArea();
-    }
-    */
 
     public string getName() { return areaName; }
 
@@ -623,7 +632,7 @@ public class GameArea
             item.checkZoneColor();
         }
     }
-
+    /*
     void createArea()
     {
         string[] zones = { };
@@ -643,6 +652,12 @@ public class GameArea
         {
             areaZones[i] = new GameZone(zones[i]);
         }
+    }
+    */
+
+    public void initZones()
+    {
+        createZones();
     }
 
     public void createZones()
@@ -668,25 +683,48 @@ public class GameZone
     public GameZone(Zone z)
     {
         this.zone = z;
-        this.zoneName = z.name;
-        gatherDice();
-    }
-
-    public GameZone(string n)
-    {
-        this.zoneName = n;
+        this.zoneName = z.transform.parent.name;
+        checkIfCard();
     }
 
     public string getName() { return zoneName; }
 
-    void gatherDice()
+    public void gatherDice()
     {
-        this.dice = this.zone.GetComponentsInChildren<Die>();
+        this.dice = this.zone.transform.parent.GetComponentsInChildren<Die>();
     }
 
     public void checkZoneColor()
     {
         this.zone.checkOwnColor = true;
+    }
+
+    public void checkIfCard()
+    {
+        Card card = this.zone.transform.parent.GetComponentInChildren<Card>();
+        if (card)
+        {
+            card.initCard();
+
+            Transform cT = card.transform.parent.Find("Dice");
+            for (int i = 0; i < card.totalDice; i++)
+            {
+                GameLogic.instance.instantiateDie(cT);
+            }
+
+            gatherDice();
+
+            foreach (Die die in dice)
+            {
+                die.card = card;
+                die.colorOutside = card.cardInfo.outsideColor;
+                die.colorInside = card.cardInfo.insideColor;
+                //die.setDieColor(card.cardInfo.outsideColor, card.cardInfo.insideColor);
+            }
+        } else
+        {
+            gatherDice();
+        }
     }
 }
 
@@ -709,12 +747,7 @@ public class MeshLayout
     }
 }
 
-[System.Serializable]
-public class ScoreLayout : MeshLayout
-{
-    //public GameObject scoreArea;
-    
-}
+
 
 [System.Serializable]
 public class CardLayout : MeshLayout
@@ -790,12 +823,12 @@ public struct TextureBuilder
 
 
     
-
+    /*
     public static Texture2D BuildTexture(TextureInfo[] texInfos)
     {
         return BuildTexture(texInfos, GameLogic.instance.gameLayout.scoreArea.getMeshSize(), null);
     }
-
+    */
 
     public static Texture2D BuildTexture(CardInfo cardInfo)
     {

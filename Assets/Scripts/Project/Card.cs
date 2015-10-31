@@ -12,24 +12,30 @@ public class Card : MonoBehaviour {
     int numberSides;
     public int totalDice;
     public int diceOnCard;
-    public List<Die> dice = new List<Die>();
     public string cardName;
 
     public Texture cardImage;
-    public CardInfo cardTileInfo;
+    public CardInfo cardInfo;
 
     // Use this for initialization 
     void Start () {
-        //sides = new Side[dieSize]; 
-        Debug.Log("Card Start()");
-        numberSides = sides.Length;
-        
-        buildMesh(GameLogic.instance.cardLayout.mesh);
+
     }
 
     // Update is called once per frame
     void Update () {
 	}
+
+    public void initCard()
+    {
+        //sides = new Side[dieSize];
+        cardInfo.randomizeValues();
+        Debug.Log("Card Start()");
+        numberSides = sides.Length;
+
+        buildMesh(GameLogic.instance.cardLayout.mesh);
+        //setDice();
+    }
 
     public void buildMesh(Mesh mesh)
     {
@@ -40,45 +46,27 @@ public class Card : MonoBehaviour {
         mesh_collider.sharedMesh = mesh;
 
         createTexture();
-
-        setDice();
     }
 
 
     public void createTexture()
     {
-        Debug.Log("Card Cost: " + cardTileInfo.cost);
-        cardTileInfo.texInfo = TextureBuilder.ChopUpAllTextures(cardTileInfo.texInfo);
-        Debug.Log("Card Cost: " + cardTileInfo.cost);
-        //cardImage = GameLogic.instance.cardLayout.createTexture(cardTileInfo);
-        cardImage = TextureBuilder.BuildTexture(cardTileInfo);
+        cardInfo.texInfo = TextureBuilder.ChopUpAllTextures(cardInfo.texInfo);
+        cardImage = TextureBuilder.BuildTexture(cardInfo);
         GetComponent<Renderer>().material.mainTexture = cardImage;
     }
     
 
     public void createTextureEditor(Mesh mesh)
     {
-        cardTileInfo.randomizeValues();
+        cardInfo.randomizeValues();
         buildMesh(mesh);
     }
-
-    public void setTexture(Texture tex)
-    {
-        GetComponent<Renderer>().material.mainTexture = tex;
-    }
-
-
-    void OnMouseEnter()
-    {
-        //CardUI.texture = GetComponent<Renderer>().material.mainTexture;
-        //GameLogic.instance.cardLayout.setImage(cardImage);
-    }
-
+    
     void OnMouseOver()
     {
         if (Input.GetMouseButtonDown(1))
         {
-            Debug.Log("Mouse down");
             GameLogic.instance.cardLayout.pnlCard.SetActive(true);
             GameLogic.instance.cardLayout.setImage(cardImage);
             GameLogic.instance.cardLayout.setText(cardName);
@@ -92,7 +80,6 @@ public class Card : MonoBehaviour {
 
     void OnMouseExit()
     {
-        //CardUI.enabled = false;
         GameLogic.instance.cardLayout.pnlCard.SetActive(false);
     }
 
@@ -104,6 +91,7 @@ public class Card : MonoBehaviour {
         */
     }
 
+    /*
     public void setDice()
     {
         // Get this Card's Zone
@@ -115,10 +103,11 @@ public class Card : MonoBehaviour {
         foreach (Die die in d)
         {
             die.card = this;
-            die.setDieColor(cardTileInfo.outsideColor, cardTileInfo.insideColor);
+            die.setDieColor(cardInfo.outsideColor, cardInfo.insideColor);
         }
         // Set each Die to this Card's colors
     }
+    */
 
     public Side getSide(int i) {
         Debug.Log(i);
@@ -199,13 +188,13 @@ public class CardInfo
 
 public static class Sides
 {
-    public enum sideValue { E_1, E_2, MINION };
+    public enum sideValue { E_1, E_2, C_112 };
     static Side[] sides = new Side[3];
 
     public static void createSides() {
-        sides[0] = new Side(1, 0, 0, 0, 0);
-        sides[1] = new Side(2, 0, 0, 0, 0);
-        sides[2] = new Side(0, 1, 1, 2, 1);
+        sides[0] = new Side(1);
+        sides[1] = new Side(2);
+        sides[2] = new Side(1, 1, 2);
     }
     public static Side getSide(int i) {
         return sides[i];
@@ -215,17 +204,27 @@ public static class Sides
 
 public class Side
 {
-    public enum valueTypes { ENERGY, COST, ATTACK, DEFENSE, LEVEL };
+    public enum valueTypes { ENERGY, COST, ATTACK, DEFENSE, LEVEL, STAR };
 
     int energy, cost, attack, defense, level;
+    int star;
 
-    public Side(int e, int c, int a, int d, int l) {
-        energy  = e;
-        cost    = c;
-        attack  = a;
+    public Side(int e)                              { setVals(e, 0, 0, 0, 0); }
+    public Side(       int c, int a, int d)         { setVals(0, c, a, d, 0); }
+    public Side(       int c, int a, int d, int l)  { setVals(0, c, a, d, l); }
+    public Side(int e, int c, int a, int d, int l)  { setVals(e, c, a, d, l); }
+
+    public void setVals(int e, int c, int a, int d, int l)
+    {
+        energy = e;
+        cost = c;
+        attack = a;
         defense = d;
-        level   = 1;
+        level = 1;
     }
+
+    public void setStar(int s) { star = s; }
+
     public int getStat(valueTypes vt) {
         switch (vt) {
             case valueTypes.ENERGY:     return energy;
@@ -233,6 +232,7 @@ public class Side
             case valueTypes.ATTACK:     return attack;
             case valueTypes.DEFENSE:    return defense;
             case valueTypes.LEVEL:      return level;
+            case valueTypes.STAR:       return star;
             default:                    return 0;
         }
     }
@@ -242,4 +242,5 @@ public class Side
     public int getAttack()  { return attack;    }
     public int getDefense() { return defense;   }
     public int getLevel()   { return level;     }
+    public int getStar()    { return star;      }
 }
