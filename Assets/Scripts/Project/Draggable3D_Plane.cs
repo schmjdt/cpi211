@@ -67,59 +67,57 @@ public class Draggable3D_Plane : MonoBehaviour {
 
     public void OnMouseDrag()
     {
-        if (canDrag)
+        if (!canDrag) return;
+        //OnDrag(eventData); 
+
+        changeX = -(lastPositX - getPosition(directionX)) * transform.localScale.x / offset * CameraControl.playerCameraOffset;
+        changeY = (lastPositY - getPosition(directionY)) * transform.localScale.y / offset * CameraControl.playerCameraOffset;
+        changeZ = -(lastPositZ - getPosition(directionZ)) * transform.localScale.z / offset * CameraControl.playerCameraOffset;
+
+
+        transform.position = new Vector3(transform.position.x + (changeX),
+                                            transform.position.y + (changeY),
+                                            transform.position.z + (changeZ));
+
+        //transform.Translate(changeX, changeY, changeZ);
+
+
+        Ray ray = Camera.main.ScreenPointToRay(Camera.main.WorldToScreenPoint(transform.position));
+        if (Physics.Raycast(ray, out hit))
         {
-            //OnDrag(eventData); 
-
-            changeX = -(lastPositX - getPosition(directionX)) * transform.localScale.x / offset * CameraControl.playerCameraOffset;
-            changeY = (lastPositY - getPosition(directionY)) * transform.localScale.y / offset * CameraControl.playerCameraOffset;
-            changeZ = -(lastPositZ - getPosition(directionZ)) * transform.localScale.z / offset * CameraControl.playerCameraOffset;
-
-
-            transform.position = new Vector3(transform.position.x + (changeX),
-                                             transform.position.y + (changeY),
-                                             transform.position.z + (changeZ));
-
-            //transform.Translate(changeX, changeY, changeZ);
-
-
-            Ray ray = Camera.main.ScreenPointToRay(Camera.main.WorldToScreenPoint(transform.position));
-            if (Physics.Raycast(ray, out hit))
-            {
-                Debug.Log("Camera Ray = " + hit.collider.name);
-            }
-
-
-
-            if (Physics.Raycast(transform.position, new Vector3(0, -transform.position.y, 0), out hit))
-            {
-                Debug.Log("Own Ray: " + hit.transform.name);
-                zoneHit = hit.transform.GetComponent<Zone>();
-                if (zoneHit != null)
-                {
-                    //if (this.typeOfSlot == zoneHit.typeOfSlot)
-                    if (GameLogic.instance.isValidDrop(zoneHit))
-                    {
-                        placeHolderParent = zoneHit.transform;
-                    }
-                }
-                else
-                    placeHolderParent = originalParent.parent.Find("zoneOutline");
-                GameLogic.instance.gameLayout.checkZoneColor();
-            }
-
-            //lastPositX = Camera.main.ScreenToWorldPoint(Input.mousePosition).x; 
-            //lastPositY = Camera.main.ScreenToWorldPoint(Input.mousePosition).y;
-            lastPositX = getPosition(directionX);
-            lastPositY = getPosition(directionY);
-            lastPositZ = getPosition(directionZ);
+            Debug.Log("Camera Ray = " + hit.collider.name);
         }
+
+
+
+        if (Physics.Raycast(transform.position, new Vector3(0, -transform.position.y, 0), out hit))
+        {
+            Debug.Log("Own Ray: " + hit.transform.name);
+            zoneHit = hit.transform.GetComponent<Zone>();
+            if (zoneHit != null)
+            {
+                //if (this.typeOfSlot == zoneHit.typeOfSlot)
+                if (GameLogic.instance.isValidDrop(zoneHit))
+                {
+                    placeHolderParent = zoneHit.transform;
+                }
+            }
+            else
+                placeHolderParent = originalParent.parent.Find("zoneOutline");
+            GameLogic.instance.gameLayout.checkZoneColor();
+        }
+
+        //lastPositX = Camera.main.ScreenToWorldPoint(Input.mousePosition).x; 
+        //lastPositY = Camera.main.ScreenToWorldPoint(Input.mousePosition).y;
+        lastPositX = getPosition(directionX);
+        lastPositY = getPosition(directionY);
+        lastPositZ = getPosition(directionZ);
     }
 
     void OnMouseUp()
     {
         if (!canDrag) return;
-        Cursor.visible = true; GameLogic.instance.draggedObject = null;
+        Cursor.visible = true;
 
         if (originalParent.parent.Find("zoneOutline") != placeHolderParent)
         {
@@ -143,8 +141,11 @@ public class Draggable3D_Plane : MonoBehaviour {
         this.transform.SetParent(originalParent);
         Debug.Log(this.name + " was dropped on " + originalParent.name);
         //GetComponent<CanvasGroup>().blocksRaycasts = true; 
+
+        canDrag = false;
         GetComponent<Rigidbody>().isKinematic = false;
-        GameLogic.instance.gameLayout.checkZoneColor();
+
+        GameLogic.instance.dieDropped();
     }
 
 

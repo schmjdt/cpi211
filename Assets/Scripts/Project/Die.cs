@@ -109,6 +109,15 @@ public class Die : MonoBehaviour, IComparable {
         return false;
     }
     
+    public void toggleVisibility(bool b)
+    {
+        GetComponent<Renderer>().enabled = b;
+        // Will cause Die to fall through table
+        GetComponent<Collider>().enabled = b;
+    }
+
+    public bool isVisible() { return GetComponent<Renderer>().enabled; }
+
     void OnMouseOver() {
 
         if (Input.GetMouseButtonDown(1))
@@ -122,7 +131,7 @@ public class Die : MonoBehaviour, IComparable {
 
     public void rollDie()
     {
-        Transform spawn = GameObject.Find("area" + GameLogic.instance.playerLogic.currentPlayer().getPlayerName() + "/zoneRoll/rollPlayer").transform;
+        Transform spawn = GameObject.Find("area" + GameLogic.instance.playerLogic.currentPlayer().getPlayerName() + "/zoneRoll").GetComponentInChildren<Zone>().transform;
         Vector3 force = getForce(spawn);
 
         moveDie(spawn);
@@ -156,11 +165,11 @@ public class Die : MonoBehaviour, IComparable {
         float[] f2V = GameLogic.instance.rollValues.f2V;
         float[] lV = GameLogic.instance.rollValues.lV;
 
-        Transform rT = GameObject.Find("area" + GameLogic.instance.playerLogic.currentPlayer().getPlayerName() + "/zoneServicable/Dice").transform;
+        //Transform rT = GameObject.Find("area" + GameLogic.instance.playerLogic.currentPlayer().getPlayerName() + "/zoneServicable/Dice").transform;
 
-        Vector3 rollTarget = Vector3.zero + new Vector3(rT.position.x * UnityEngine.Random.value,
+        Vector3 rollTarget = Vector3.zero + new Vector3(t.position.x * UnityEngine.Random.value,
                                                         f1V[1] + f2V[0] * UnityEngine.Random.value,
-                                                        rT.position.z * UnityEngine.Random.value);
+                                                        t.position.z * UnityEngine.Random.value);
         /*
         Vector3 rollTarget = Vector3.zero + new Vector3(f1V[0] + f2V[0] * UnityEngine.Random.value,
                                                         f1V[1] + f2V[0] * UnityEngine.Random.value,
@@ -183,14 +192,15 @@ public class Die : MonoBehaviour, IComparable {
 
     public void moveDie(Zone z)
     {
-        this.GetComponent<Draggable3D_Plane>().transform.SetParent(z.transform.parent.Find("Dice"));
+        transform.SetParent(z.transform.parent.Find("Dice"));
         positionDie();
     }
 
     public void moveDie(Transform t)
     {
         Transform dP = t.parent.Find("Dice").transform;
-        this.GetComponent<Draggable3D_Plane>().transform.SetParent(dP);
+        //this.GetComponent<Draggable3D_Plane>().transform.SetParent(dP);
+        transform.SetParent(dP);
         positionDie();
     }
 

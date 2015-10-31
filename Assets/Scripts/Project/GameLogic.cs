@@ -180,10 +180,13 @@ public class GameLayout
         return getDiceInZone("", zoneName);
     }
 
-    public Die[] getDiceInZone(string areaName, string zoneName)
+    public Die[] getDiceInZone(string a, string z)
     {
+        string obj = a + "/";
+        if (obj == "/") obj = "";
+        obj = z;
         Die[] dice = null;
-        GameObject zone = GameObject.Find(areaName + "zone" + zoneName);
+        GameObject zone = GameObject.Find(obj);
         if (zone != null)
         {
             dice = zone.GetComponentsInChildren<Die>();
@@ -191,9 +194,16 @@ public class GameLayout
         return dice;
     }
 
+    public GameObject getZoneDiceParent(string z)
+    {
+        return getZoneDiceParent("", z);
+    }
+
     public GameObject getZoneDiceParent(string a, string z)
     {
-        string obj = "/" + a + "/" + z + "/Dice";
+        string obj = a + "/";
+        if (obj == "/") obj = "";
+        obj = z + "/Dice";
         Debug.Log(obj);
         return GameObject.Find(obj);
     }
@@ -238,9 +248,6 @@ public class GameLogic : MonoBehaviour
     {
         Debug.Log("Game Awake()");
         instance = this;
-        //playerLogic = new PlayerLogic();
-        //gameLayout = new GameLayout();
-        //cardLayout = new CardLayout();
 
         Sides.createSides();
         cardLayout.buildMesh();
@@ -253,10 +260,11 @@ public class GameLogic : MonoBehaviour
         GameState.newGame = true;
         {
             Debug.Log("Game Started");
-            //createPlayers();
             playerLogic.initPlayers();
             playerLogic.performStep();
-            //cardLayout.createTileColors();
+
+            moveDice("zoneMB", "areaPlayer1/zoneSupply", 8, false);
+            moveDice("zoneMB", "areaPlayer2/zoneSupply", 8, false);
         }
         GameState.newGame = false;
     }
@@ -277,9 +285,28 @@ public class GameLogic : MonoBehaviour
             if (Physics.Raycast(ray, out hit))
             {
                 //Debug.Log("Name = " + hit.collider.name);
+                try
+                {
+                    if (hit.collider.transform.parent.parent.name == "area" + playerLogic.currentPlayer().getPlayerName())
+                    {
+                        string colParName = hit.collider.transform.parent.name;
+                        switch (colParName)
+                        {
+                            case "zoneSupply":
+                                drawDice(5);
+                                break;
+                            case "zoneRoll":
+                                moveDice(getCurrentName(colParName),
+                                         getCurrentName("zoneServicable"));
+                                break;
+                        }
+                    }
+                }
+                catch(Exception e)
+                {
+                    Debug.Log("GameLogic Update err:/n" + e);
+                }
 
-                if (hit.collider.name == "zoneSupply" && hit.collider.transform.parent.name == "area" + playerLogic.currentPlayer().getPlayerName())
-                    drawDice(5);
 
             }
         }
@@ -294,6 +321,10 @@ public class GameLogic : MonoBehaviour
 
     }
 
+    public string getCurrentName(string z)
+    {
+        return "area" + playerLogic.currentPlayer().getPlayerName() + "/" + z;
+    }
 
     public Card[] getCards()
     {
@@ -336,54 +367,64 @@ public class GameLogic : MonoBehaviour
 
     public void drawDice(int amount)
     {
-        string pN = playerLogic.currentPlayer().getPlayerName();
+        int count = amount;
 
-        Transform support = gameLayout.getZoneDiceParent("area" + pN, "zoneSupport").transform;
-        Transform hand = gameLayout.getZoneDiceParent("area" + pN, "zoneSupply").transform;
+        Transform support = GameObject.Find(getCurrentName("zoneSupport/zoneOutline")).transform;
+        string supply = getCurrentName("zoneSupply");
+        string stored = getCurrentName("zoneStored");
 
-        Die[] h = gameLayout.getDiceInZone("area" + pN, "zoneSupply");
-        Die[] d = gameLayout.getDiceInZone("area" + pN, "zoneStored");
-        
-        List<Die> diceHand = new List<Die>();
-        
+        Die[] h = gameLayout.getDiceInZone(supply);
+        Die[] d = gameLayout.getDiceInZone(stored);
+
         int iDraw;
+        
 
-        if (h.Length == 0 && d.Length > 0)
+        if (h.Length == 0 && d.Length != 0)
         {
-            foreach (Die die in d)
+            moveDice(stored, supply, false);
+            h = gameLayout.getDiceInZone(supply);
+            d = new Die[0];
+        }
+
+        while (count != 0 && h.Length != 0)
+        {
+            iDraw = UnityEngine.Random.Range(0, h.Length);
+
+            h[iDraw].moveDie(support);
+            h[iDraw].toggleVisibility(true);
+
+            count--;
+            h = gameLayout.getDiceInZone(supply);
+
+            if (count > 0 && h.Length == 0 && d.Length > 0)
             {
-                die.moveDie(hand);
-                die.GetComponent<MeshRenderer>().enabled = false;
+                moveDice(stored, supply, false);
+                h = gameLayout.getDiceInZone(supply);
+                d = new Die[0];
             }
         }
 
-        foreach (Die die in h)
-        {
-            diceHand.Add(die);
-        }
-
-        while (amount != 0 && diceHand.Count != 0)
-        {
-            iDraw = UnityEngine.Random.Range(0, diceHand.Count - 1);
-            
-            diceHand[iDraw].moveDie(support);
-            diceHand[iDraw].GetComponent<MeshRenderer>().enabled = false;
-            diceHand.RemoveAt(iDraw);
-
-            amount--;
-
-            if (amount > 0 && diceHand.Count == 0 && d.Length > 0)
-            {
-                foreach (Die die in d)
-                {
-                    die.moveDie(hand);
-                    die.GetComponent<MeshRenderer>().enabled = false;
-                }
-            }
-        }
+        Debug.Log("Moved " + (amount - count) + " dice !");
     }
 
-    
+
+    public void moveDice(string f, string t) { moveDice(f, t, 0, true); }
+    public void moveDice(string f, string t, int amt) { moveDice(f, t, amt, true); }
+    public void moveDice(string f, string t, bool b) { moveDice(f, t, 0, b); }
+    public void moveDice(string f, string t, int amt, bool b)
+    {
+        Die[] dice = gameLayout.getDiceInZone(f);
+
+        int count = amt;
+        if (count <= 0 || count > dice.Length) count = dice.Length;
+                
+        for (int i = 0; i < count; i++)
+        {
+            dice[i].moveDie(gameLayout.getZoneDiceParent(t).transform);
+            dice[i].toggleVisibility(b);
+        }        
+    }
+
 
     public Zone getDraggedPlaceholder()
     {
@@ -407,8 +448,7 @@ public class GameLogic : MonoBehaviour
 
         //Die d = draggedObject.GetComponent<Die>();
         //if (!d) return false;
-
-        return true;
+        
         switch (playerLogic.currentStep)
         {
             case PlayerLogic.eSteps.SCORE:
@@ -443,7 +483,14 @@ public class GameLogic : MonoBehaviour
             case PlayerLogic.eSteps.SECURE:
                 isValid = false;
                 break;
+
+
         }
+
+        // houseRules
+        isValid = true;
+
+
 
         if (drag.getParentZone() == z) isValid = true;
         return isValid;
@@ -451,25 +498,64 @@ public class GameLogic : MonoBehaviour
 
     public bool isValidDrag(Draggable3D_Plane drag)
     {
-        switch (playerLogic.currentStep)
-        {
-            case PlayerLogic.eSteps.SCORE:
-                break;
-            case PlayerLogic.eSteps.SCRY:
-                break;
-            case PlayerLogic.eSteps.SPIN:
-                break;
-            case PlayerLogic.eSteps.SPEND:
-                break;
-            case PlayerLogic.eSteps.STRIKE:
-                break;
-            case PlayerLogic.eSteps.SECURE:
-                break;
+        try {
+            if (drag.transform.parent.parent.name == "zoneRoll")
+            {
+                moveDice(getCurrentName("zoneRoll"),
+                         getCurrentName("zoneServicable"));
+                return false;
+            }
+            if (drag.transform.parent.parent.name == "zoneSupply")
+            {
+                //drawDice(5);
+                return false;
+            }
+
+            switch (playerLogic.currentStep)
+            {
+                case PlayerLogic.eSteps.SCORE:
+                    break;
+                case PlayerLogic.eSteps.SCRY:
+                    break;
+                case PlayerLogic.eSteps.SPIN:
+                    break;
+                case PlayerLogic.eSteps.SPEND:
+                    break;
+                case PlayerLogic.eSteps.STRIKE:
+                    break;
+                case PlayerLogic.eSteps.SECURE:
+                    break;
+            }
+            draggedObject = drag.gameObject;
         }
-        draggedObject = drag.gameObject;
+        catch (Exception e)
+        {
+            Debug.Log("isValidDrag err:/n" + e);
+        }
         return true;
     }
 
+    public bool checkStep(PlayerLogic.eSteps eS) { return playerLogic.currentStep == eS;  }
+
+
+
+    public void dieDropped()
+    {
+        gameLayout.checkZoneColor();
+
+
+        // Special Zone Cases (If drop is valid)
+        switch (draggedObject.transform.parent.parent.name)
+        {
+            case "zoneSupply":
+                //draggedObject
+                draggedObject.GetComponent<Die>().toggleVisibility(false);
+                break;
+        }
+
+
+        draggedObject = null;
+    }
     
 
 
@@ -505,17 +591,19 @@ public class GameLogic : MonoBehaviour
 
     public void adminIncScore()
     {
-        int p = UnityEngine.Random.Range(0, 2);
+        //int p = UnityEngine.Random.Range(0, 2);
+        
         int mod;
         int winCondition = 24;
 
-        //for (int p = 0; p < 2; p++)
-        //{
+        for (int p = 0; p < 2; p++)
+        {
             mod = -1;
             if (p == 1)
                 mod = 1;
 
-        int s = UnityEngine.Random.Range(1, 4);
+            //int s = UnityEngine.Random.Range(1, 4);
+            int s = 1;
         if (playerLogic.players[p].score == winCondition)
             playerLogic.players[p].score = 0;
         else
@@ -527,10 +615,10 @@ public class GameLogic : MonoBehaviour
         }
 
         Transform d = GameObject.Find("token" + playerLogic.players[p].getPlayerName()).transform;
-            d.localPosition = new Vector3(gameLayout.positScores[playerLogic.players[p].score + 1].localPosition.x,
+            d.localPosition = new Vector3(gameLayout.positScores[playerLogic.players[p].score + 1].localPosition.x + mod * (.004f + UnityEngine.Random.Range(0f, .004f)),
                                      d.localPosition.y,
-                                     gameLayout.positScores[playerLogic.players[p].score + 1].localPosition.z + mod * UnityEngine.Random.Range(0f, .01f));
-        //}
+                                     gameLayout.positScores[playerLogic.players[p].score + 1].localPosition.z + mod * (.004f + UnityEngine.Random.Range(0f, .004f)));
+        }
     }
 
     public void adminIncStep() { playerLogic.incStep(); playerLogic.performStep(); }

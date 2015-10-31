@@ -65,15 +65,19 @@ public class Card : MonoBehaviour {
     
     void OnMouseOver()
     {
+        /*
         if (Input.GetMouseButtonDown(1))
         {
-            GameLogic.instance.cardLayout.pnlCard.SetActive(true);
             GameLogic.instance.cardLayout.setImage(cardImage);
             GameLogic.instance.cardLayout.setText(cardName);
+            GameLogic.instance.cardLayout.pnlCard.SetActive(true);
         }
+        */
         if (Input.GetMouseButton(1))
         {
             GameLogic.instance.cardLayout.pnlCard.SetActive(true);//CardUI.enabled = true;
+            GameLogic.instance.cardLayout.setImage(cardImage);
+            GameLogic.instance.cardLayout.setText(cardName);
         }
         else GameLogic.instance.cardLayout.pnlCard.SetActive(false); //CardUI.enabled = false;
     }
