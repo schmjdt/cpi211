@@ -365,11 +365,13 @@ public class GameLogic : MonoBehaviour
         }
     }
 
+    //     IEnumerator
     public void drawDice(int amount)
     {
         int count = amount;
 
-        Transform support = GameObject.Find(getCurrentName("zoneSupport/zoneOutline")).transform;
+        Transform supportT = GameObject.Find(getCurrentName("zoneSupport/zoneOutline")).transform;
+        string support = getCurrentName("zoneSupport");
         string supply = getCurrentName("zoneSupply");
         string stored = getCurrentName("zoneStored");
 
@@ -386,18 +388,28 @@ public class GameLogic : MonoBehaviour
             d = new Die[0];
         }
 
+        //moveDice(supply, support, amount);
+        /*
+            What to do if can't move the asked amount?
+                If 'from' is "supply" then
+                    moveDice(stored, supply, false)
+                    continue
+         */
         while (count != 0 && h.Length != 0)
         {
             iDraw = UnityEngine.Random.Range(0, h.Length);
 
-            h[iDraw].moveDie(support);
+            h[iDraw].moveDie(supportT);
             h[iDraw].toggleVisibility(true);
+            h[iDraw].setAudio(2);
+            h[iDraw].playAudio();
 
             count--;
             h = gameLayout.getDiceInZone(supply);
 
             if (count > 0 && h.Length == 0 && d.Length > 0)
             {
+                //yield return new WaitForSeconds(h[iDraw].GetComponent<AudioSource>().clip.length);
                 moveDice(stored, supply, false);
                 h = gameLayout.getDiceInZone(supply);
                 d = new Die[0];
@@ -407,10 +419,23 @@ public class GameLogic : MonoBehaviour
         Debug.Log("Moved " + (amount - count) + " dice !");
     }
 
+    public void rollSimilarDice(Die d) {
+        Die[] dice = d.transform.parent.GetComponentsInChildren<Die>();
+        int iAudio = 3;
 
-    public void moveDice(string f, string t) { moveDice(f, t, 0, true); }
-    public void moveDice(string f, string t, int amt) { moveDice(f, t, amt, true); }
-    public void moveDice(string f, string t, bool b) { moveDice(f, t, 0, b); }
+        if (dice.Length > 1)
+            iAudio = 5; // index of the multiple dice roll sound
+
+        foreach (Die die in dice) {
+            die.setAudio(iAudio);
+            die.rollDie();
+        }
+    }
+
+
+    public void moveDice(string f, string t)                    { moveDice(f, t, 0,   true);    }
+    public void moveDice(string f, string t, int amt)           { moveDice(f, t, amt, true);    }
+    public void moveDice(string f, string t, bool b)            { moveDice(f, t, 0,   b);       }
     public void moveDice(string f, string t, int amt, bool b)
     {
         Die[] dice = gameLayout.getDiceInZone(f);
@@ -422,6 +447,13 @@ public class GameLogic : MonoBehaviour
         {
             dice[i].moveDie(gameLayout.getZoneDiceParent(t).transform);
             dice[i].toggleVisibility(b);
+
+            if (b) {
+                dice[i].setAudio(2);
+            } else {
+                dice[i].setAudio(4);
+            }
+            dice[i].playAudio();
         }        
     }
 
@@ -541,7 +573,9 @@ public class GameLogic : MonoBehaviour
 
     public void dieDropped()
     {
+        Die d = draggedObject.GetComponent<Die>();
         gameLayout.checkZoneColor();
+
 
 
         // Special Zone Cases (If drop is valid)
@@ -549,11 +583,15 @@ public class GameLogic : MonoBehaviour
         {
             case "zoneSupply":
                 //draggedObject
-                draggedObject.GetComponent<Die>().toggleVisibility(false);
+                d.toggleVisibility(false);
+                d.setAudio(4);
+                break;
+            default:
+                d.setAudio(0);
                 break;
         }
 
-
+        d.playAudio();
         draggedObject = null;
     }
     
@@ -846,6 +884,19 @@ public class CardLayout : MeshLayout
     
     public List<Texture2D> texCards = new List<Texture2D>();   
     
+
+    public void toggleImage(bool b) {
+        toggleImage(b, null, "");
+    }
+
+    public void toggleImage(bool b, Texture i, string s) {
+        pnlCard.SetActive(b);
+        if (b) {
+            setImage(i);
+            setText(s);
+        }
+    }
+
     // HARD: Assums there is a panel (gameobject) with a rawimage and text for the card
     public void setImage(Texture img)
     {

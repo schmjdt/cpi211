@@ -63,6 +63,8 @@ public class Draggable3D_Plane : MonoBehaviour {
         //GetComponent<CanvasGroup>().blocksRaycasts = false; 
         GetComponent<Rigidbody>().isKinematic = true;
         GameLogic.instance.gameLayout.checkZoneColor();
+
+        playDieSound(1);
     }
 
     public void OnMouseDrag()
@@ -166,4 +168,13 @@ public class Draggable3D_Plane : MonoBehaviour {
 
     public Zone getParentZone() { return originalParent.parent.gameObject.GetComponentInChildren<Zone>(); }
     public GameObject getParentArea() { return originalParent.parent.parent.gameObject; }
+
+
+    public void playDieSound(int i) {
+        Die d = transform.GetComponent<Die>();
+        if (d) {
+            d.setAudio(i);
+            d.playAudio();
+        }
+    }
 }

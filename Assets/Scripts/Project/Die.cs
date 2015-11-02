@@ -17,6 +17,9 @@ public class Die : MonoBehaviour, IComparable {
     //eDieColor dieColorValue;
 
     public Card card;
+
+    public AudioClip[] audioclip;
+
     int sideStatValue;
 
     bool moving;
@@ -64,6 +67,45 @@ public class Die : MonoBehaviour, IComparable {
             updateValue();
 
 	}
+
+    void OnMouseOver() {
+
+        if (Input.GetMouseButtonDown(1))
+        {
+            //if (Input.GetKeyDown("r"))
+            //{
+        		if (Input.GetKey(KeyCode.LeftShift)) {
+        			GameLogic.instance.rollSimilarDice(this);
+        		}
+        		else {
+        			setAudio(3);
+                	rollDie();
+        		}
+            //}
+        }
+    }
+
+
+    void OnTriggerStay(Collider other)
+    {
+        if (other.GetComponent<Die>() != null) {
+        	//GetComponent<AudioSource>().enabled = false;
+            positionDie();
+        }
+    }
+
+    void OnTriggerExit(Collider other)
+    {
+    	//GetComponent<AudioSource>().enabled = true;
+    }
+
+    bool valid(float t, float v)
+    {
+        if (t > (v - validMargin) && t < (v + validMargin))
+            return true;
+        return false;
+    }
+
     public int getSideValue(Side.valueTypes vt) {
         sideStatValue = card.getSide(dieValue).getStat(vt);
         return sideStatValue;
@@ -102,12 +144,6 @@ public class Die : MonoBehaviour, IComparable {
         } while (testHitVector != Vector3.zero);
     }
 
-    bool valid(float t, float v)
-    {
-        if (t > (v - validMargin) && t < (v + validMargin))
-            return true;
-        return false;
-    }
     
     public void toggleVisibility(bool b)
     {
@@ -118,16 +154,14 @@ public class Die : MonoBehaviour, IComparable {
 
     public bool isVisible() { return GetComponent<Renderer>().enabled; }
 
-    void OnMouseOver() {
-
-        if (Input.GetMouseButtonDown(1))
-        {
-            //if (Input.GetKeyDown("r"))
-            //{
-                rollDie();
-            //}
-        }
+    public void setAudio(int i) {
+    	GetComponent<AudioSource>().clip = audioclip[i];
     }
+
+    public void playAudio() {
+    	GetComponent<AudioSource>().Play();
+    }
+
 
     public void rollDie()
     {
@@ -151,6 +185,9 @@ public class Die : MonoBehaviour, IComparable {
         this.GetComponent<Rigidbody>().AddTorque(new Vector3(tV[0] * UnityEngine.Random.value * transform.localScale.magnitude,
                                                              tV[1] * UnityEngine.Random.value * transform.localScale.magnitude,
                                                              tV[2] * UnityEngine.Random.value * transform.localScale.magnitude), ForceMode.Impulse);
+
+
+        playAudio();
     }
 
     Vector3 getForce(Transform t)
@@ -193,6 +230,8 @@ public class Die : MonoBehaviour, IComparable {
     public void moveDie(Zone z)
     {
         transform.SetParent(z.transform.parent.Find("Dice"));
+
+
         positionDie();
     }
 
@@ -211,11 +250,6 @@ public class Die : MonoBehaviour, IComparable {
         this.transform.localPosition = new Vector3(offsetX, 0f, offsetZ);
     }
 
-    void OnTriggerStay(Collider other)
-    {
-        if (other.GetComponent<Die>() != null)
-            positionDie();
-    }
 
     /*
     void OnCollisionEnter(Collision collisionInfo)

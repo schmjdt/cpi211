@@ -17,6 +17,10 @@ public class Card : MonoBehaviour {
     public Texture cardImage;
     public CardInfo cardInfo;
 
+    public AudioClip[] audioclip;
+
+    bool visible;
+
     // Use this for initialization 
     void Start () {
 
@@ -25,6 +29,63 @@ public class Card : MonoBehaviour {
     // Update is called once per frame
     void Update () {
 	}
+
+    void OnMouseOver()
+    {
+        /*
+        if (Input.GetMouseButtonDown(1))
+        {
+            GameLogic.instance.cardLayout.setImage(cardImage);
+            GameLogic.instance.cardLayout.setText(cardName);
+            GameLogic.instance.cardLayout.pnlCard.SetActive(true);
+        }
+        */
+        if (Input.GetMouseButton(1))
+        {
+        	/*
+            GameLogic.instance.cardLayout.pnlCard.SetActive(true);//CardUI.enabled = true;
+            GameLogic.instance.cardLayout.setImage(cardImage);
+            GameLogic.instance.cardLayout.setText(cardName);
+            */
+            if (!visible) {
+	            GameLogic.instance.cardLayout.toggleImage(true, cardImage, cardName);
+	            
+	            setAudio(0);
+	        	playAudio();
+
+	        	visible = true;
+	        }
+
+        }
+        else {
+        	if (visible) {
+	            setAudio(1);
+	            playAudio();   
+		       	//GameLogic.instance.cardLayout.pnlCard.SetActive(false); //CardUI.enabled = false;	     		
+	        	GameLogic.instance.cardLayout.toggleImage(false);
+	        	visible = false;
+        	}
+        } 
+    }
+
+    void OnMouseExit()
+    {
+    	if (visible) {
+            setAudio(1);
+            playAudio();        		
+        	//GameLogic.instance.cardLayout.pnlCard.SetActive(false); //CardUI.enabled = false;	
+        	GameLogic.instance.cardLayout.toggleImage(false);
+			visible = false;
+    	}
+    }
+
+    public void setAudio(int i) {
+    	GetComponent<AudioSource>().clip = audioclip[i];
+    }
+
+    public void playAudio() {
+    	GetComponent<AudioSource>().Play();
+    }
 
     public void initCard()
     {
@@ -63,29 +124,6 @@ public class Card : MonoBehaviour {
         buildMesh(mesh);
     }
     
-    void OnMouseOver()
-    {
-        /*
-        if (Input.GetMouseButtonDown(1))
-        {
-            GameLogic.instance.cardLayout.setImage(cardImage);
-            GameLogic.instance.cardLayout.setText(cardName);
-            GameLogic.instance.cardLayout.pnlCard.SetActive(true);
-        }
-        */
-        if (Input.GetMouseButton(1))
-        {
-            GameLogic.instance.cardLayout.pnlCard.SetActive(true);//CardUI.enabled = true;
-            GameLogic.instance.cardLayout.setImage(cardImage);
-            GameLogic.instance.cardLayout.setText(cardName);
-        }
-        else GameLogic.instance.cardLayout.pnlCard.SetActive(false); //CardUI.enabled = false;
-    }
-
-    void OnMouseExit()
-    {
-        GameLogic.instance.cardLayout.pnlCard.SetActive(false);
-    }
 
     public void createDie()
     { 
