@@ -39,6 +39,7 @@ public class GameLogic : MonoBehaviour
         cardLayout.buildMesh();
         stepLogic.initSteps();
         //gameLayout.gatherDice();
+
     }
 
     void Start()
@@ -46,8 +47,8 @@ public class GameLogic : MonoBehaviour
         gameLayout.initLayout();
         GameState.newGame = true;
         {
-            Debug.Log("Game Started");
             playerLogic.initPlayers();
+            Debug.Log("Game Started");
             //stepLogic.performStep();
 
             moveDice("zoneMB", "areaPlayer1/zoneSupply", 8, false);
@@ -474,10 +475,10 @@ public class GameLogic : MonoBehaviour
             Debug.Log(playerLogic.players[p].getPlayerName() + " Wins!");
         }
 
-        Transform d = GameObject.Find("Token" + playerLogic.players[p].getPlayerName()).transform;
-            d.localPosition = new Vector3(gameLayout.positScores[playerLogic.players[p].score + 1].localPosition.x + mod * (.004f + UnityEngine.Random.Range(0f, .004f)),
-                                     d.localPosition.y,
-                                     gameLayout.positScores[playerLogic.players[p].score + 1].localPosition.z + mod * (.004f + UnityEngine.Random.Range(0f, .004f)));
+        Transform d = gameLayout.scoreTokens[p];
+        d.localPosition = new Vector3(gameLayout.positScores[playerLogic.players[p].score + 1].localPosition.x + mod * (.004f + UnityEngine.Random.Range(0f, .004f)),
+                                    d.localPosition.y,
+                                    gameLayout.positScores[playerLogic.players[p].score + 1].localPosition.z + mod * (.004f + UnityEngine.Random.Range(0f, .004f)));
         }
     }
 
@@ -546,7 +547,6 @@ public class PlayerLogic
     public int totalPlayers = 2;
     public Player[] players;
 
-
     // Add Market Vars:  # can buy at once (int), if can buy (bool)
 
 
@@ -560,7 +560,6 @@ public class PlayerLogic
             for (int i = 0; i < totalPlayers; i++)
             {
                 players[i] = new Player(i);
-
             }
         }
     }

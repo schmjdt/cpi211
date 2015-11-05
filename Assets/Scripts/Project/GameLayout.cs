@@ -9,7 +9,9 @@ public class GameLayout
     public GameArea[] gameAreas;
 
     public Transform scorePositions;
+    public Transform[] scoreTokens;
     public Transform[] positScores;
+
 
     public void initLayout()
     {
