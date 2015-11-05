@@ -3,7 +3,7 @@ using System.Collections;
 
 public class CameraControl : MonoBehaviour
 {
-    public static CameraControl instance;
+    //public static CameraControl instance;
     // Player Camera 
     public Camera playerCamera;
 	public GameObject[] camPlayerPositions;
@@ -23,11 +23,11 @@ public class CameraControl : MonoBehaviour
 
     float count = 0, lastValue = 0;
 
-    public KeyCode zoomKey = KeyCode.Z;
+    public KeyCode zoomKey;
 
     void Awake()
     {
-        instance = this;
+        //instance = this;
     }
 
     // Use this for initialization

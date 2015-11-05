@@ -5,7 +5,7 @@ using System;
 
 //[RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(BoxCollider))]
-[RequireComponent(typeof(Draggable3D_Plane))]
+[RequireComponent(typeof(Draggable))]
 public class Die : MonoBehaviour, IComparable {
     enum eDieColor { RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE };
 
@@ -17,8 +17,6 @@ public class Die : MonoBehaviour, IComparable {
     //eDieColor dieColorValue;
 
     public Card card;
-
-    public AudioClip[] audioclip;
 
     int sideStatValue;
 
@@ -69,7 +67,7 @@ public class Die : MonoBehaviour, IComparable {
 	}
 
     void OnMouseOver() {
-
+        /*
         if (Input.GetMouseButtonDown(1))
         {
             //if (Input.GetKeyDown("r"))
@@ -78,11 +76,12 @@ public class Die : MonoBehaviour, IComparable {
         			GameLogic.instance.rollSimilarDice(this);
         		}
         		else {
-        			setAudio(3);
-                	rollDie();
+                    SoundControl.instance.setAudio("dice", "rollS");
+                	//rollDie();
         		}
             //}
         }
+        */
     }
 
 
@@ -90,7 +89,7 @@ public class Die : MonoBehaviour, IComparable {
     {
         if (other.GetComponent<Die>() != null) {
         	//GetComponent<AudioSource>().enabled = false;
-            positionDie();
+            offsetDie();
         }
     }
 
@@ -153,67 +152,8 @@ public class Die : MonoBehaviour, IComparable {
     }
 
     public bool isVisible() { return GetComponent<Renderer>().enabled; }
+    
 
-    public void setAudio(int i) {
-    	GetComponent<AudioSource>().clip = audioclip[i];
-    }
-
-    public void playAudio() {
-    	GetComponent<AudioSource>().Play();
-    }
-
-
-    public void rollDie()
-    {
-        Transform spawn = GameObject.Find("area" + GameLogic.instance.playerLogic.currentPlayer().getPlayerName() + "/zoneRoll").GetComponentInChildren<Zone>().transform;
-        Vector3 force = getForce(spawn);
-
-        moveDie(spawn);
-
-        
-        // Random Rotation
-        this.transform.Rotate(new Vector3(  UnityEngine.Random.value * 360,
-                                            UnityEngine.Random.value * 360,
-                                            UnityEngine.Random.value * 360));
-
-        // Add Force
-        this.GetComponent<Rigidbody>().AddForce(force, ForceMode.Impulse);
-
-        // Add Random Torque
-        // -50
-        float[] tV = GameLogic.instance.rollValues.tV;
-        this.GetComponent<Rigidbody>().AddTorque(new Vector3(tV[0] * UnityEngine.Random.value * transform.localScale.magnitude,
-                                                             tV[1] * UnityEngine.Random.value * transform.localScale.magnitude,
-                                                             tV[2] * UnityEngine.Random.value * transform.localScale.magnitude), ForceMode.Impulse);
-
-
-        playAudio();
-    }
-
-    Vector3 getForce(Transform t)
-    {
-        /*
-         2  +  7
-        .5f +  4
-        -2  + -3
-        -35     20
-        */
-        float[] f1V = GameLogic.instance.rollValues.f1V;
-        float[] f2V = GameLogic.instance.rollValues.f2V;
-        float[] lV = GameLogic.instance.rollValues.lV;
-
-        //Transform rT = GameObject.Find("area" + GameLogic.instance.playerLogic.currentPlayer().getPlayerName() + "/zoneServicable/Dice").transform;
-
-        Vector3 rollTarget = Vector3.zero + new Vector3(t.position.x * UnityEngine.Random.value,
-                                                        f1V[1] + f2V[0] * UnityEngine.Random.value,
-                                                        t.position.z * UnityEngine.Random.value);
-        /*
-        Vector3 rollTarget = Vector3.zero + new Vector3(f1V[0] + f2V[0] * UnityEngine.Random.value,
-                                                        f1V[1] + f2V[0] * UnityEngine.Random.value,
-                                                        f1V[2] + f2V[0] * UnityEngine.Random.value);
-        */
-        return Vector3.Lerp(t.position, rollTarget, 1).normalized * (lV[0] - UnityEngine.Random.value * lV[1]);
-    }
 
 
     public void rollDieValue()
@@ -226,21 +166,41 @@ public class Die : MonoBehaviour, IComparable {
         Debug.Log("Die rolled: " + dieValue);
     }
 
+    public void offsetDie()
+    {
+        float offsetX = UnityEngine.Random.Range(-.05f, .05f);
+        float offsetY = 0f;
+        float offsetZ = UnityEngine.Random.Range(-.05f, .05f);
 
+        offsetDie(offsetX, offsetY, offsetZ);
+    }
+
+    public void offsetDie(float x, float y, float z)
+    {
+        this.transform.localPosition = new Vector3(x, y, z);
+    }
+
+
+    /*
     public void moveDie(Zone z)
     {
         transform.SetParent(z.transform.parent.Find("Dice"));
-
-
+        
         positionDie();
     }
 
     public void moveDie(Transform t)
     {
-        Transform dP = t.parent.Find("Dice").transform;
+        Transform dP = t.Find("Dice").transform;
         //this.GetComponent<Draggable3D_Plane>().transform.SetParent(dP);
-        transform.SetParent(dP);
-        positionDie();
+        if (dP)
+        {
+            transform.SetParent(dP);
+            positionDie();
+        } else
+        {
+            Debug.Log("Die not moved, no 'Dice' transform found");
+        }
     }
 
     void positionDie()
@@ -249,6 +209,7 @@ public class Die : MonoBehaviour, IComparable {
         float offsetZ = UnityEngine.Random.Range(-.05f, .05f);
         this.transform.localPosition = new Vector3(offsetX, 0f, offsetZ);
     }
+    */
 
 
     /*
@@ -270,7 +231,13 @@ public class Die : MonoBehaviour, IComparable {
         moving = false;
     }
     */
-    
+
+    public void setCard(Card c)
+    {
+        card = c;
+        colorOutside    = c.cardInfo.outsideColor;
+        colorInside     = c.cardInfo.insideColor;
+    }
 
 
     public void setDieColor()

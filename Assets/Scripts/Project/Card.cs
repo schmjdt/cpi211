@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
-using System.Collections.Generic;
 using System.Collections;
+using System.Collections.Generic;
 
 [ExecuteInEditMode]
 public class Card : MonoBehaviour {
@@ -16,9 +16,7 @@ public class Card : MonoBehaviour {
 
     public Texture cardImage;
     public CardInfo cardInfo;
-
-    public AudioClip[] audioclip;
-
+    
     bool visible;
 
     // Use this for initialization 
@@ -49,9 +47,10 @@ public class Card : MonoBehaviour {
             */
             if (!visible) {
 	            GameLogic.instance.cardLayout.toggleImage(true, cardImage, cardName);
-	            
-	            setAudio(0);
-	        	playAudio();
+
+                SoundControl.instance.playAudio("card", "pickup");
+	            //setAudio(0);
+	        	//playAudio();
 
 	        	visible = true;
 	        }
@@ -59,10 +58,12 @@ public class Card : MonoBehaviour {
         }
         else {
         	if (visible) {
-	            setAudio(1);
-	            playAudio();   
-		       	//GameLogic.instance.cardLayout.pnlCard.SetActive(false); //CardUI.enabled = false;	     		
-	        	GameLogic.instance.cardLayout.toggleImage(false);
+                //setAudio(1);
+                //playAudio();   
+
+                SoundControl.instance.playAudio("card", "place");
+                //GameLogic.instance.cardLayout.pnlCard.SetActive(false); //CardUI.enabled = false;	     		
+                GameLogic.instance.cardLayout.toggleImage(false);
 	        	visible = false;
         	}
         } 
@@ -71,22 +72,15 @@ public class Card : MonoBehaviour {
     void OnMouseExit()
     {
     	if (visible) {
-            setAudio(1);
-            playAudio();        		
-        	//GameLogic.instance.cardLayout.pnlCard.SetActive(false); //CardUI.enabled = false;	
-        	GameLogic.instance.cardLayout.toggleImage(false);
+            //setAudio(1);
+            //playAudio();        	
+            SoundControl.instance.playAudio("card", "place");
+            //GameLogic.instance.cardLayout.pnlCard.SetActive(false); //CardUI.enabled = false;	
+            GameLogic.instance.cardLayout.toggleImage(false);
 			visible = false;
     	}
     }
-
-    public void setAudio(int i) {
-    	GetComponent<AudioSource>().clip = audioclip[i];
-    }
-
-    public void playAudio() {
-    	GetComponent<AudioSource>().Play();
-    }
-
+    
     public void initCard()
     {
         //sides = new Side[dieSize];

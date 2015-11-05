@@ -4,245 +4,31 @@ using System.Collections;
 using System.Collections.Generic;
 using System;
 
-[System.Serializable]
-public class PlayerLogic
-{
-    public enum eSteps { SCORE, SCRY, SPIN, SPEND, STRIKE, SECURE };
-    public int playerTurn = 0;
-    public eSteps currentStep;
-    public int currentRound = 1;
-
-    public int totalPlayers = 2;
-    public Player[] players;
-
-
-    // Add Market Vars:  # can buy at once (int), if can buy (bool)
-
-    public string descStep = "";
-
-    public Player currentPlayer() { return players[playerTurn]; }
-
-    public void initPlayers()
-    {
-        if (GameState.newGame)
-        {
-            players = new Player[totalPlayers];
-            for (int i = 0; i < totalPlayers; i++)
-            {
-                players[i] = new Player(i);
-
-            }
-
-            initStep();            
-        }
-    }
-
-    public void cycleTurn()
-    {
-        playerTurn = nextPlayer(playerTurn);
-        //CameraControl.instance.togglePlayerCam();
-
-        if (playerTurn == 0)
-            incRound();
-    }
-
-    public int nextPlayer(int p)
-    {
-        int nP = p + 1;
-        if (nP == totalPlayers) nP = 0;
-        return nP;
-    }
-
-    public void initRound() { currentRound = 1; }
-    public void incRound() { currentRound++; }
-    public void initStep() { currentStep = eSteps.SCORE; }
-    public void incStep()
-    {
-        if (currentStep == eSteps.SECURE)
-        {
-            initStep();
-            cycleTurn();
-        }
-        else
-        {
-            currentStep++;
-        }
-    }
-
-
-    public void performStep()
-    {
-        switch (currentStep)
-        {
-            case eSteps.SCORE:
-                descStep =
-                    "Get Dice in Summoned\n" +
-                    "Sum total of Die's Score value\n" +
-                    "Move each Die to Stored";
-                break;
-            case eSteps.SCRY:
-                descStep =
-                    "Move 5 Die from Supply to Support\n" +
-                    "If Supply = 0, move all Die from Stored to Supply\n" +
-                    "If Supply = 0 and Store = 0, continue";
-                break;
-            case eSteps.SPIN:
-                descStep =
-                    "Roll all Die in Support\n" +
-                    "Move all die to Servicable";
-                break;
-            case eSteps.SPEND:
-                descStep =
-                    "Total Energy on Die\n" +
-                    "Buy from Market\n" +
-                    "Summon creature\n" +
-                    "Extra special things";
-                break;
-            case eSteps.STRIKE:
-                descStep =
-                    "Attack all players\n" +
-                    "Other Players defend";
-                break;
-            case eSteps.SECURE:
-                descStep =
-                    "Move all Die from Servicable to Stored\n" +
-                    "Move all Die from Spent to Store";
-                break;
-        }
-    }
-};
-
-
-[System.Serializable]
 public struct GameState
 {
     public static bool newGame;
 
+    public static int cRound = 1;
+
 };
-
-[System.Serializable]
-public class GameLayout
-{
-    public GameArea[] gameAreas;
-
-    public Transform scorePositions;
-    public Transform[] positScores;
-
-    public void initLayout()
-    {
-        // Init Areas/Zones
-        foreach (GameArea item in gameAreas)
-        {
-            item.initZones();
-        }
-
-        // Init Scoreboard
-        positScores = scorePositions.GetComponentsInChildren<Transform>();
-    }
-
-    public void checkZoneColor()
-    {
-        foreach (GameArea item in gameAreas)
-        {
-            item.checkZoneColor();
-        }
-    }
-
-    public GameArea getArea(string s)
-    {
-        for (int i = 0; i < gameAreas.Length; i++)
-        {
-            if (s == gameAreas[i].getName()) return gameAreas[i];
-        }
-        return null;
-    }
-    
-    public void gatherDice()
-    {
-        foreach (GameArea area in gameAreas)
-            foreach (GameZone zone in area.areaZones)
-                zone.gatherDice();
-    }
-        
-    public Die[] getDice(int a, int z)
-    {
-        gameAreas[a].areaZones[z].gatherDice();
-        return gameAreas[a].getDice(z);
-    }
-
-    public Die[] getDiceInZone(Zone z)
-    {
-        return getDiceInZone(z.name);
-    }
-
-    public Die[] getDiceInZone(string zoneName)
-    {
-        return getDiceInZone("", zoneName);
-    }
-
-    public Die[] getDiceInZone(string a, string z)
-    {
-        string obj = a + "/";
-        if (obj == "/") obj = "";
-        obj = z;
-        Die[] dice = null;
-        GameObject zone = GameObject.Find(obj);
-        if (zone != null)
-        {
-            dice = zone.GetComponentsInChildren<Die>();
-        }
-        return dice;
-    }
-
-    public GameObject getZoneDiceParent(string z)
-    {
-        return getZoneDiceParent("", z);
-    }
-
-    public GameObject getZoneDiceParent(string a, string z)
-    {
-        string obj = a + "/";
-        if (obj == "/") obj = "";
-        obj = z + "/Dice";
-        Debug.Log(obj);
-        return GameObject.Find(obj);
-    }
-}
-
-[System.Serializable]
-public class RollValues
-{
-    public float[] tV;
-    public float[] f1V;
-    public float[] f2V;
-    public float[] lV;
-}
-
 
 public class GameLogic : MonoBehaviour
 {
     public static GameLogic instance;
 
-    public GameObject card;
-    public Die dillydoe;
+    public Card cardPrefab;
+    public Die diePrefab;
 
     public GameObject draggedObject = null;
     
+    
     public PlayerLogic playerLogic;
+    public StepLogic stepLogic;
+
     public GameLayout gameLayout;
     public CardLayout cardLayout;
 
     public RollValues rollValues;
-
-    // Card Mesh
-    /*
-    [Header("Card Layout")]
-    public int size_x;
-    public int size_z;
-	public Mesh mesh;
-    public RawImage imgCard;
-    public Text txtCard;
-    */
 
     void Awake()
     {
@@ -251,6 +37,7 @@ public class GameLogic : MonoBehaviour
 
         Sides.createSides();
         cardLayout.buildMesh();
+        stepLogic.initSteps();
         //gameLayout.gatherDice();
     }
 
@@ -261,70 +48,74 @@ public class GameLogic : MonoBehaviour
         {
             Debug.Log("Game Started");
             playerLogic.initPlayers();
-            playerLogic.performStep();
+            //stepLogic.performStep();
 
             moveDice("zoneMB", "areaPlayer1/zoneSupply", 8, false);
             moveDice("zoneMB", "areaPlayer2/zoneSupply", 8, false);
         }
         GameState.newGame = false;
+        GameObject.Find("gameStateStats").GetComponent<Text>().text = getGameDesc();
     }
 
     void Update()
     {
         //if (Input.GetKeyUp("r"))        rollDice();
-        if (Input.GetKeyUp("t"))   playerLogic.cycleTurn();
+        if (Input.GetKeyUp("t"))   playerLogic.cyclePlayer();
         else if (Input.GetKeyUp("p"))   printCards();
         else if (Input.GetKeyUp("m")) adminMoveDie();
         else if (Input.GetKeyUp("i")) adminIncScore();
-        
-        
+        else if (Input.GetKey("d")) DieLogic.drawRollLine();
+
         else if (Input.GetMouseButtonDown(0))
         {
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            RaycastHit hit;
-            if (Physics.Raycast(ray, out hit))
+            string z = gameLayout.checkAreaClick();
+            switch (z)
             {
-                //Debug.Log("Name = " + hit.collider.name);
-                try
-                {
-                    if (hit.collider.transform.parent.parent.name == "area" + playerLogic.currentPlayer().getPlayerName())
-                    {
-                        string colParName = hit.collider.transform.parent.name;
-                        switch (colParName)
-                        {
-                            case "zoneSupply":
-                                drawDice(5);
-                                break;
-                            case "zoneRoll":
-                                moveDice(getCurrentName(colParName),
-                                         getCurrentName("zoneServicable"));
-                                break;
-                        }
-                    }
-                }
-                catch(Exception e)
-                {
-                    Debug.Log("GameLogic Update err:/n" + e);
-                }
-
-
+                case "zoneSupply":
+                    drawDice(5);
+                    break;
+                case "zoneRoll":
+                    moveDice(getCurrentZoneS(z), getCurrentZoneS("zoneServicable"));
+                    break;
             }
+        }
+        else if (Input.GetMouseButtonDown(1))
+        {
+            //if (Input.GetKeyDown("r"))
+            //{
+            Die die = DieLogic.clickedDie();
+
+            if (die)
+            {
+                if (Input.GetKey(KeyCode.LeftShift))
+                {
+                    GameLogic.instance.rollSimilarDice(die);
+                }
+                else
+                {
+                    SoundControl.instance.setAudio("dice", "rollS");
+                    DieLogic.rollDie(die);
+                }
+            }
+            //}
         }
 
 
-
-        GameObject.Find("gameStateStats").GetComponent<Text>().text =
-                "Player: " + playerLogic.currentPlayer().getPlayerName() + "\n" +
-                "Step: " + playerLogic.currentStep + "\n" +
-                "Round: " + playerLogic.currentRound + "\n" +
-                "Desc: " + playerLogic.descStep;
-
     }
 
-    public string getCurrentName(string z)
+    public void updateTurn()
     {
-        return "area" + playerLogic.currentPlayer().getPlayerName() + "/" + z;
+        if (stepLogic.cycleStep())
+            if (playerLogic.cyclePlayer())
+                GameState.cRound++;
     }
+
+    public Zone getCurrentZone(string z)
+    {
+        return null;
+    }
+    public string getCurrentZoneS(string z)  { return getCurrentAreaS() + "/" + z;                          }
+    public string getCurrentAreaS()          { return "area" + playerLogic.currentPlayer().getPlayerName(); }
 
     public Card[] getCards()
     {
@@ -347,7 +138,7 @@ public class GameLogic : MonoBehaviour
         //Transform pA = GameObject.Find("areaMarket/zoneM1/Dice").transform;
         //Transform dS = pA.gameObject.Find("areaPlayer1/zoneSummoned/Dice").transform;
         
-        Die d = (Die)Instantiate(dillydoe, t.position, Quaternion.identity);
+        Die d = (Die)Instantiate(diePrefab, t.position, Quaternion.identity);
         d.transform.SetParent(t);
         d.transform.position = t.position;
         //d.transform.localPosition = dS.position;
@@ -361,7 +152,7 @@ public class GameLogic : MonoBehaviour
         Debug.Log(playerLogic.currentPlayer().getPlayerName() + " Rolling Dice");
         foreach (Die die in gameLayout.getDiceInZone(playerLogic.currentPlayer().getPlayerName()))
         {
-            die.rollDie();
+            DieLogic.rollDie(die);
         }
     }
 
@@ -370,10 +161,10 @@ public class GameLogic : MonoBehaviour
     {
         int count = amount;
 
-        Transform supportT = GameObject.Find(getCurrentName("zoneSupport/zoneOutline")).transform;
-        string support = getCurrentName("zoneSupport");
-        string supply = getCurrentName("zoneSupply");
-        string stored = getCurrentName("zoneStored");
+        Transform supportT = GameObject.Find(getCurrentZoneS("zoneSupport/zoneOutline")).transform;
+        string support = getCurrentZoneS("zoneSupport");
+        string supply = getCurrentZoneS("zoneSupply");
+        string stored = getCurrentZoneS("zoneStored");
 
         Die[] h = gameLayout.getDiceInZone(supply);
         Die[] d = gameLayout.getDiceInZone(stored);
@@ -399,10 +190,10 @@ public class GameLogic : MonoBehaviour
         {
             iDraw = UnityEngine.Random.Range(0, h.Length);
 
-            h[iDraw].moveDie(supportT);
+            DieLogic.moveDie(h[iDraw], supportT);
             h[iDraw].toggleVisibility(true);
-            h[iDraw].setAudio(2);
-            h[iDraw].playAudio();
+
+            SoundControl.instance.playAudio("dice", "slide");
 
             count--;
             h = gameLayout.getDiceInZone(supply);
@@ -421,14 +212,15 @@ public class GameLogic : MonoBehaviour
 
     public void rollSimilarDice(Die d) {
         Die[] dice = d.transform.parent.GetComponentsInChildren<Die>();
-        int iAudio = 3;
+        string sAudio = "rollS";
 
         if (dice.Length > 1)
-            iAudio = 5; // index of the multiple dice roll sound
+            sAudio = "rollM_1"; // index of the multiple dice roll sound
+        
 
         foreach (Die die in dice) {
-            die.setAudio(iAudio);
-            die.rollDie();
+            SoundControl.instance.setAudio("dice", sAudio);
+            DieLogic.rollDie(die);
         }
     }
 
@@ -445,22 +237,25 @@ public class GameLogic : MonoBehaviour
                 
         for (int i = 0; i < count; i++)
         {
-            dice[i].moveDie(gameLayout.getZoneDiceParent(t).transform);
+
+
+            //dice[i].moveDie(gameLayout.getZoneDiceParent(t).transform);
+            DieLogic.moveDie(dice[i], gameLayout.getZone(t));
             dice[i].toggleVisibility(b);
 
             if (b) {
-                dice[i].setAudio(2);
-            } else {
-                dice[i].setAudio(4);
+                SoundControl.instance.playAudio("dice", "slide");
+            } else
+            {
+                SoundControl.instance.playAudio("dice", "drop_cup");
             }
-            dice[i].playAudio();
         }        
     }
 
 
     public Zone getDraggedPlaceholder()
     {
-        Draggable3D_Plane drag = draggedObject.GetComponent<Draggable3D_Plane>();
+        Draggable drag = draggedObject.GetComponent<Draggable>();
         if (!drag) return null;
         return drag.placeHolderParent.GetComponent<Zone>();
         //return drag.getParentZone();
@@ -475,33 +270,33 @@ public class GameLogic : MonoBehaviour
         // know current step
 
         if (!draggedObject) return false;
-        Draggable3D_Plane drag = draggedObject.GetComponent<Draggable3D_Plane>();
+        Draggable drag = draggedObject.GetComponent<Draggable>();
         if (!drag) return false;
 
         //Die d = draggedObject.GetComponent<Die>();
         //if (!d) return false;
         
-        switch (playerLogic.currentStep)
+        switch (stepLogic.cStep)
         {
-            case PlayerLogic.eSteps.SCORE:
+            case 0:
                 
-                if ((playerLogic.playerTurn == 0 && 
+                if ((playerLogic.cPlayer == 0 && 
                      z.typeOfSlot == Zone.Slot.P1_STORED && drag.getParentZone().typeOfSlot == Zone.Slot.P1_SUMMONED) ||
-                    (playerLogic.playerTurn == 1 && 
+                    (playerLogic.cPlayer == 1 && 
                      z.typeOfSlot == Zone.Slot.P2_STORED && drag.getParentZone().typeOfSlot == Zone.Slot.P2_SUMMONED))
                     isValid = true;
                 break;
-            case PlayerLogic.eSteps.SCRY:
+            case 1:
                 isValid = false;
                 break;
-            case PlayerLogic.eSteps.SPIN:
+            case 2:
                 isValid = false;
                 break;
-            case PlayerLogic.eSteps.SPEND:
+            case 3:
                 isValid = false;
                 if (drag.getParentArea().name == "areaMarket" && 
-                    ((playerLogic.playerTurn == 0 && z.typeOfSlot == Zone.Slot.P1_STORED) ||
-                     (playerLogic.playerTurn == 1 && z.typeOfSlot == Zone.Slot.P2_STORED)))
+                    ((playerLogic.cPlayer == 0 && z.typeOfSlot == Zone.Slot.P1_STORED) ||
+                     (playerLogic.cPlayer == 1 && z.typeOfSlot == Zone.Slot.P2_STORED)))
                     isValid = true;
                 /*
                 if ((draggedObject) == Stall &&
@@ -509,10 +304,10 @@ public class GameLogic : MonoBehaviour
                         return true;
                 */
                 break;
-            case PlayerLogic.eSteps.STRIKE:
+            case 4:
                 isValid = false;
                 break;
-            case PlayerLogic.eSteps.SECURE:
+            case 5:
                 isValid = false;
                 break;
 
@@ -528,49 +323,68 @@ public class GameLogic : MonoBehaviour
         return isValid;
     }
 
-    public bool isValidDrag(Draggable3D_Plane drag)
+    public bool isValidClick(Draggable drag)
     {
+        bool canClick = false;
         try {
-            if (drag.transform.parent.parent.name == "zoneRoll")
+            Debug.Log("Area: " + drag.getParentArea().name);
+            // If draggable not in current player's area or the market, then do not allow to drag.
+            if (drag.getParentArea().name != getCurrentZoneS("") && drag.getParentArea().name != "areaMarket")
+                canClick = false;
+
+            // If draggable clicked is in the rolled zone, then move the dice to proper spot.
+            if (drag.getParentZone().name == "zoneRoll")
             {
-                moveDice(getCurrentName("zoneRoll"),
-                         getCurrentName("zoneServicable"));
-                return false;
-            }
-            if (drag.transform.parent.parent.name == "zoneSupply")
-            {
-                //drawDice(5);
-                return false;
+                moveDice(getCurrentZoneS("zoneRoll"),
+                         getCurrentZoneS("zoneServicable"));
+                canClick = false;
             }
 
-            switch (playerLogic.currentStep)
+            // Depending on step and zone, allow draggability
+            switch (stepLogic.cStep)
             {
-                case PlayerLogic.eSteps.SCORE:
+                case 0:
+                    // Clicked die in zoneSummonedcore dice
+                    if (drag.getParentZone().name == "zoneSummoned")
+                    {
+                        moveDice(getCurrentZoneS("zoneSummoned"),
+                                 getCurrentZoneS("zoneStored"));
+                        canClick = false;
+                    }
                     break;
-                case PlayerLogic.eSteps.SCRY:
+                case 1:
                     break;
-                case PlayerLogic.eSteps.SPIN:
+                case 2:
                     break;
-                case PlayerLogic.eSteps.SPEND:
+                case 3:
+                    if (drag.getParentArea().name == "areaMarket")
+                    {
+                        canClick = true;
+                    }
                     break;
-                case PlayerLogic.eSteps.STRIKE:
+                case 4:
                     break;
-                case PlayerLogic.eSteps.SECURE:
+                case 5:
                     break;
             }
-            draggedObject = drag.gameObject;
         }
         catch (Exception e)
         {
             Debug.Log("isValidDrag err:/n" + e);
         }
-        return true;
+        finally
+        {
+            if (canClick)
+                draggedObject = drag.gameObject;
+        }
+
+        if (canClick)
+            return true;
+        return false;
+
     }
 
-    public bool checkStep(PlayerLogic.eSteps eS) { return playerLogic.currentStep == eS;  }
-
-
-
+    
     public void dieDropped()
     {
         Die d = draggedObject.GetComponent<Die>();
@@ -584,14 +398,13 @@ public class GameLogic : MonoBehaviour
             case "zoneSupply":
                 //draggedObject
                 d.toggleVisibility(false);
-                d.setAudio(4);
+                SoundControl.instance.playAudio("dice", "drop_cup");
                 break;
             default:
-                d.setAudio(0);
+                SoundControl.instance.playAudio("dice", "drop_table");
                 break;
         }
-
-        d.playAudio();
+        
         draggedObject = null;
     }
     
@@ -619,6 +432,15 @@ public class GameLogic : MonoBehaviour
     }
     // ----------------------------------------------------------- }
 
+
+    public string getGameDesc()
+    {
+        return
+            "Player: " + playerLogic.currentPlayer().getPlayerName() + "\n" +
+            "Step: " + stepLogic.getName() + "\n" +
+            "Round: " + GameState.cRound + "\n" +
+            "Desc: " + stepLogic.getDesc();
+    }
 
     // Admin
 
@@ -652,14 +474,20 @@ public class GameLogic : MonoBehaviour
             Debug.Log(playerLogic.players[p].getPlayerName() + " Wins!");
         }
 
-        Transform d = GameObject.Find("token" + playerLogic.players[p].getPlayerName()).transform;
+        Transform d = GameObject.Find("Token" + playerLogic.players[p].getPlayerName()).transform;
             d.localPosition = new Vector3(gameLayout.positScores[playerLogic.players[p].score + 1].localPosition.x + mod * (.004f + UnityEngine.Random.Range(0f, .004f)),
                                      d.localPosition.y,
                                      gameLayout.positScores[playerLogic.players[p].score + 1].localPosition.z + mod * (.004f + UnityEngine.Random.Range(0f, .004f)));
         }
     }
 
-    public void adminIncStep() { playerLogic.incStep(); playerLogic.performStep(); }
+    public void adminIncStep() {
+        //stepLogic.incStep();
+        updateTurn();
+        //stepLogic.performStep();
+
+        GameObject.Find("gameStateStats").GetComponent<Text>().text = getGameDesc();
+    }
 
     public void adminMoveDie()
     {
@@ -667,35 +495,35 @@ public class GameLogic : MonoBehaviour
         Transform zT = GameObject.Find("areaPlayer1/zoneSupport").transform;
         Transform dT = GameObject.Find("areaPlayer1/zoneSupport").transform;
 
-        switch (playerLogic.currentStep)
+        switch (stepLogic.cStep)
         {
-            case PlayerLogic.eSteps.SCORE:
+            case 0:
                 dT = GameObject.Find("areaPlayer1/zoneSupport").transform;
                 zT = GameObject.Find("areaPlayer1/zoneServicable").transform;
                 break;
-            case PlayerLogic.eSteps.SCRY:
+            case 1:
                 dT = GameObject.Find("areaPlayer1/zoneServicable").transform;
                 zT = GameObject.Find("areaPlayer1/zoneSummoned").transform;
                 break;
-            case PlayerLogic.eSteps.SPIN:
+            case 2:
                 dT = GameObject.Find("areaPlayer1/zoneSummoned").transform;
                 zT = GameObject.Find("areaPlayer1/zoneSpent").transform;
                 break;
-            case PlayerLogic.eSteps.SPEND:
+            case 3:
                 dT = GameObject.Find("areaPlayer1/zoneSpent").transform;
                 zT = GameObject.Find("areaPlayer1/zoneStored").transform;
                 break;
-            case PlayerLogic.eSteps.STRIKE:
+            case 4:
                 dT = GameObject.Find("areaPlayer1/zoneStored").transform;
                 zT = GameObject.Find("areaPlayer1/zoneSupport").transform;
                 break;
-            case PlayerLogic.eSteps.SECURE:
+            case 5:
                 dT = GameObject.Find("areaPlayer1/zoneSupport").transform;
                 zT = GameObject.Find("areaPlayer1/zoneSupport").transform;
                 break;
         }
 
-        foreach (Die item in dT.GetComponentsInChildren<Die>())
+        foreach (Die die in dT.GetComponentsInChildren<Die>())
         {
             /*
             item.GetComponent<Draggable3D_Plane>().transform.SetParent(zT.Find("Dice"));
@@ -703,452 +531,278 @@ public class GameLogic : MonoBehaviour
             float offsetY = UnityEngine.Random.Range(-.05f, .05f);
             item.transform.localPosition = new Vector3(offsetX, offsetY, -.01f);
             */
-            item.moveDie(zT.GetComponentInChildren<Zone>());
+            DieLogic.moveDie(die, zT.GetComponentInChildren<Zone>());
         }
 
         adminIncStep();
     }
-
-    public void adminMoveDie2()
-    {
-        Transform zT = GameObject.Find("areaPlayer1/zoneStored").transform; ;
-        foreach (Die item in GameObject.Find("areaMarket/zoneCard1").GetComponent<Zone>().getZoneDice())
-        {
-            item.GetComponent<Draggable3D_Plane>().transform.SetParent(zT.Find("Dice"));
-            float offsetX = UnityEngine.Random.Range(-.05f, .05f);
-            float offsetY = UnityEngine.Random.Range(-.05f, .05f);
-            item.transform.localPosition = new Vector3(offsetX, offsetY, -.01f);
-        }
-        
-    }
 }
 
 
 [System.Serializable]
-public class GameArea
+public class PlayerLogic
 {
-    public enum eAreaType { PLAYER, MARKET, OTHER };
+    public int cPlayer = 0;
+    public int totalPlayers = 2;
+    public Player[] players;
 
-    public GameObject area;
-    public GameZone[] areaZones;
-    public string areaName;
-    public eAreaType areaType;
+
+    // Add Market Vars:  # can buy at once (int), if can buy (bool)
+
+
+    public Player currentPlayer() { return players[cPlayer]; }
+
+    public void initPlayers()
+    {
+        if (GameState.newGame)
+        {
+            players = new Player[totalPlayers];
+            for (int i = 0; i < totalPlayers; i++)
+            {
+                players[i] = new Player(i);
+
+            }
+        }
+    }
+
+    public bool cyclePlayer()
+    {
+        bool rBool = false;
+        int start = 0;
+        cPlayer = CommonLogic.cycleValue(cPlayer, players.Length, start);
+        if (cPlayer == start)
+            rBool = true;
+        return rBool;
+    }
+
+    public int nextPlayer(int p)
+    {
+        int nP = p + 1;
+        if (nP == totalPlayers) nP = 0;
+        return nP;
+    }
     
-
-    public string getName() { return areaName; }
-
-    public GameZone getZone(string s)
-    {
-        for (int i = 0; i < areaZones.Length; i++)
-        {
-            if (s == areaZones[i].getName()) return areaZones[i];
-        }
-        return null;
-    }
-
-    public Die[] getDice(int z)
-    {
-        return areaZones[z].dice;
-    }
-
-    public void checkZoneColor()
-    {
-        foreach (GameZone item in areaZones)
-        {
-            item.checkZoneColor();
-        }
-    }
     /*
-    void createArea()
+    public string getStepDesc()
     {
-        string[] zones = { };
-        switch (areaType)
-        {
-            case eAreaType.PLAYER:
-                areaZones = new GameZone[6];
-                zones = "zoneSupport,zoneServicable,zoneSummoned,zoneSpent,zoneStored,zoneSupply".Split(',');
-                break;
-            case eAreaType.MARKET:
-                areaZones = new GameZone[3];
-                zones = "zoneCard1,zoneCard2,zoneCard3".Split(',');
-                break;
-        }
-
-        for (int i = 0; i < areaZones.Length; i++)
-        {
-            areaZones[i] = new GameZone(zones[i]);
-        }
+        return
+            "Player: " + currentPlayer().getPlayerName() + "\n" +
+            "Step: " + currentStep + "\n" +
+            "Round: " + currentRound + "\n" +
+            "Desc: " + descStep;
     }
     */
 
-    public void initZones()
+
+};
+
+[System.Serializable]
+public class StepLogic
+{
+    public enum eSteps { SCORE, SCRY, SPIN, SPEND, STRIKE, SECURE };
+    public eSteps currentStep;
+
+    public int cStep = 0;
+
+    public StepInfo[] steps;
+    
+
+    public bool cycleStep()
     {
-        createZones();
+        bool rBool = false;
+        int start = 0;
+        cStep = CommonLogic.cycleValue(cStep, steps.Length, start);
+        currentStep = (eSteps) cStep;
+        if (cStep == start)
+            rBool = true;
+        return rBool;
     }
 
-    public void createZones()
+    public string getName() { return steps[cStep].getName(); }
+    public string getDesc() { return steps[cStep].getDesc(); }
+    
+    public void initSteps()
     {
-        areaName = area.name;
-        Zone[] zones = area.GetComponentsInChildren<Zone>();
-        areaZones = new GameZone[zones.Length];
-
-        for (int i = 0; i < zones.Length; i++)
-        {
-            areaZones[i] = new GameZone(zones[i]);
-        }
+        string[] sName = Enum.GetNames(typeof(eSteps));
+        steps = new StepInfo[sName.Length];
+        steps[0] = new StepInfo(sName[0],
+                    "Get Dice in Summoned\n" +
+                    "Sum total of Die's Score value\n" +
+                    "Move each Die to Stored");
+        steps[1] = new StepInfo(sName[1],
+                    "Move 5 Die from Supply to Support\n" +
+                    "If Supply = 0, move all Die from Stored to Supply\n" +
+                    "If Supply = 0 and Store = 0, continue");
+        steps[2] = new StepInfo(sName[2],
+                    "Roll all Die in Support\n" +
+                    "Move all die to Servicable");
+        steps[3] = new StepInfo(sName[3],
+                    "Total Energy on Die\n" +
+                    "Buy from Market\n" +
+                    "Summon creature\n" +
+                    "Extra special things");
+        steps[4] = new StepInfo(sName[4],
+                    "Attack all players\n" +
+                    "Other Players defend");
+        steps[5] = new StepInfo(sName[5],
+                    "Move all Die from Servicable to Stored\n" +
+                    "Move all Die from Spent to Store");
     }
 }
 
 [System.Serializable]
-public class GameZone
+public class StepInfo
 {
-    public Die[] dice;
-    public Zone zone;
-    public string zoneName;
+    [SerializeField]
+    private string stepName;
 
-    public GameZone(Zone z)
+    [SerializeField]
+    private string stepDesc;
+
+    public StepInfo(string name, string desc)
     {
-        this.zone = z;
-        this.zoneName = z.transform.parent.name;
-        checkIfCard();
+        stepName = name;
+        stepDesc = desc;
     }
 
-    public string getName() { return zoneName; }
-
-    public void gatherDice()
-    {
-        this.dice = this.zone.transform.parent.GetComponentsInChildren<Die>();
-    }
-
-    public void checkZoneColor()
-    {
-        this.zone.checkOwnColor = true;
-    }
-
-    public void checkIfCard()
-    {
-        Card card = this.zone.transform.parent.GetComponentInChildren<Card>();
-        if (card)
-        {
-            card.initCard();
-
-            Transform cT = card.transform.parent.Find("Dice");
-            for (int i = 0; i < card.totalDice; i++)
-            {
-                GameLogic.instance.instantiateDie(cT);
-            }
-
-            gatherDice();
-
-            foreach (Die die in dice)
-            {
-                die.card = card;
-                die.colorOutside = card.cardInfo.outsideColor;
-                die.colorInside = card.cardInfo.insideColor;
-                //die.setDieColor(card.cardInfo.outsideColor, card.cardInfo.insideColor);
-            }
-        } else
-        {
-            gatherDice();
-        }
-    }
+    public string getName() { return stepName; }
+    public string getDesc() { return stepDesc; }
 }
 
 
-public class MeshLayout
+public static class DieLogic
 {
-    public int size_x;
-    public int size_z;
-    public Mesh mesh;
-
-    public void buildMesh()
+    public static void moveDie(Die d, Zone z)
     {
-        mesh = MeshBuilder.BuildMesh(new Mesh(), size_x, size_z);
+        // HARD: Know that a "Zone"'s parent contains a GameObject called "Dice" that will parent the "Die"
+        d.transform.SetParent(z.transform.parent.Find("Dice"));
+
+        d.offsetDie();
     }
 
-    public int[] getMeshSize()
+    public static void moveDie(Die d, Transform t)
     {
-        int[] i = { size_x, size_z };
-        return i;
-    }
-}
+        Transform dP = t.parent.Find("Dice").transform;
 
-
-
-[System.Serializable]
-public class CardLayout : MeshLayout
-{
-    //public RawImage imgCard;
-    //public Text txtCard;
-    public GameObject pnlCard;
-    
-    public List<Texture2D> texCards = new List<Texture2D>();   
-    
-
-    public void toggleImage(bool b) {
-        toggleImage(b, null, "");
-    }
-
-    public void toggleImage(bool b, Texture i, string s) {
-        pnlCard.SetActive(b);
-        if (b) {
-            setImage(i);
-            setText(s);
-        }
-    }
-
-    // HARD: Assums there is a panel (gameobject) with a rawimage and text for the card
-    public void setImage(Texture img)
-    {
-        pnlCard.GetComponentInChildren<RawImage>().texture = img;
-    }
-
-    public void setText(string s)
-    {
-        pnlCard.GetComponentInChildren<Text>().text = s;
-    }
-}
-
-
-[System.Serializable]
-public class TextureInfo
-{
-    public Texture2D texSheet;
-    public int resolution;
-    public Color[][] texColors;
-
-    public void chopTexture()
-    {
-        texColors = TextureBuilder.ChopUpTiles(this);
-    }
-}
-
-
-
-public struct TextureBuilder
-{
-    public static Color[][] ChopUpTiles(TextureInfo texInfo)
-    {
-        Texture2D tex = texInfo.texSheet;
-        int tileResolution = texInfo.resolution;
-
-        int numTilesPerRow = tex.width / tileResolution;
-        int numRows = tex.height / tileResolution;
-
-        Color[][] tiles = new Color[numTilesPerRow * numRows][];
-
-        for (int y = 0; y < numRows; y++)
+        if (dP)
         {
-            for (int x = 0; x < numTilesPerRow; x++)
-            {
-                tiles[y * numTilesPerRow + x] = tex.GetPixels(x * tileResolution,
-                                                              y * tileResolution,
-                                                              tileResolution,
-                                                              tileResolution);
-            }
+            d.transform.SetParent(dP);
+            d.offsetDie();
         }
-
-        return tiles;
-    }
-
-    public static TextureInfo[] ChopUpAllTextures(TextureInfo[] texInfos)
-    {
-        for (int i = 0; i < texInfos.Length; i++)
-        {
-            texInfos[i].chopTexture();
-        }
-        return texInfos;
-    }
-
-
-    
-    /*
-    public static Texture2D BuildTexture(TextureInfo[] texInfos)
-    {
-        return BuildTexture(texInfos, GameLogic.instance.gameLayout.scoreArea.getMeshSize(), null);
-    }
-    */
-
-    public static Texture2D BuildTexture(CardInfo cardInfo)
-    {
-        return BuildTexture(cardInfo.texInfo, GameLogic.instance.cardLayout.getMeshSize(), cardInfo);
-    }
-
-    public static Texture2D BuildTexture(TextureInfo[] texInfos, 
-                                              int[] size_mesh,
-                                              CardInfo cardInfo)
-    {
-        
-        //TextureInfo texInfo = texInfos[0];  
-        int size_x = size_mesh[0];
-        int size_z = size_mesh[1];
-        
-        // HARD: Using the first textures resolution (for now) assuming all will be same (for now)
-        int tileResolution = texInfos[0].resolution;
-        int texWidth = size_x * tileResolution;
-        int texHeight = size_z * tileResolution;
-        Texture2D texture = new Texture2D(texWidth, texHeight);
-        
-        for (int y = 0; y < size_z; y++)
-        {
-            for (int x = 0; x < size_x; x++)
-            {
-                // Creating the color array, p
-                // Color[] p = texInfo.texColors[0];
-
-                Color[] p;
-                if (cardInfo != null)
-                    p = getCardColors(x, y, size_x, size_z, texInfos, cardInfo);
-                else
-                    p = getColors(x, y, size_x, size_z, texInfos);
-
-                // Setting the texture's pixels using the color array, p
-                texture.SetPixels(x * tileResolution, 
-                                  y * tileResolution, 
-                                  tileResolution, 
-                                  tileResolution, 
-                                  p);
-            }
-        }
-
-        texture.filterMode = FilterMode.Point;
-        texture.wrapMode = TextureWrapMode.Clamp;
-        texture.Apply();
-
-        return texture;
-    }
-
-    // FUTURE USE: Will be used for customization
-    public static Color[] getTexColors()
-    {
-        Color[] p = { new Color(0f, 0f, 0f, 1f) };
-
-        return p;
-    }
-
-    static Color[] getColors(int x, int y, int size_x, int size_z, TextureInfo[] texInfos)
-    {
-        Color[] p;
-        if (x == 0 && y == 0)
-            p = texInfos[0].texColors[0];
-        else if (x == 3 && y == 2)
-            p = texInfos[0].texColors[21];
-        else
-            p = texInfos[0].texColors[11];
-        return p;
-    }
-
-    static Color[] getCardColors(int x, int y, int size_x, int size_z, TextureInfo[] texInfos, CardInfo cardInfo)
-    {
-        Color[] p;
-        // HARD: Using magic values for now knowing the size of textures
-        //      NEED: x, z, size_x, size_z, texInfos, cardInfo
-        // ::Texture [0]::
-        // Cost:
-        if (x == 1 && y == size_z - 2)
-        {
-            //p = texInfos[0].texColors[Math.Abs(9 - cardInfo.cost)];
-            p = texInfos[0].texColors[cardInfo.cost];
-        }
-        // Points:
-        else if (x == size_x - 2 && y == size_z - 2)
-        {
-            p = texInfos[0].texColors[cardInfo.points];
-        }
-        // ::Texture [1]::
-        // Sides:
-        else if (y == 1 && (x > 0 && x < size_x - 1))
-        {
-            //p = texInfos[1].texColors[Math.Abs(9 - cardInfo.sideID[Math.Abs(5 - (x - 1))])];
-            p = texInfos[1].texColors[cardInfo.sideID[x - 1]];
-        }
-        // ::Solid Colors::
-        // outsideColor:
-        else if (x == 0 || y == 0 || y == size_z - 1 || x == size_x - 1)
-        {
-            p = new Color[texInfos[0].texColors[0].Length];
-            for (int i = 0; i < texInfos[0].texColors[0].Length; i++)
-            {
-                //p[i] = new Color(cardInfo.outsideColorRGB[0], cardInfo.outsideColorRGB[1], cardInfo.outsideColorRGB[2], 1);
-                p[i] = cardInfo.outsideColor;
-            }
-        }
-        // insideColor:
         else
         {
-            p = new Color[texInfos[0].texColors[0].Length];
-            for (int i = 0; i < texInfos[0].texColors[0].Length; i++)
-            {
-                //p[i] = new Color(cardInfo.insideColorRGB[0], cardInfo.insideColorRGB[1], cardInfo.insideColorRGB[2], 1);
-                p[i] = cardInfo.insideColor;
-            }
+            Debug.Log("Die not moved, no 'Dice' transform found");
+        }
+    }
+
+
+    public static Die clickedDie()
+    {
+        //bool b = false;
+        Die die = null;
+
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        RaycastHit hit;
+        if (Physics.Raycast(ray, out hit))
+        {
+            die = hit.collider.transform.GetComponent<Die>();
         }
 
-        return p;
+        return die;
+        //return b;
     }
+
+    public static Transform getCurrentSpawn()
+    {
+        //return GameObject.Find(GameLogic.instance.getCurrentZoneS("zoneRoll")).GetComponentInChildren<Zone>().transform;
+        return GameLogic.instance.gameLayout.getZone("zoneRoll").transform;
+    }
+
+    public static void drawRollLine()
+    {
+        Transform s = getCurrentSpawn();
+        Debug.DrawLine(s.position, getForce(s));
+    }
+
+    public static void rollDie(Die d)
+    {
+        float dieMag = d.transform.localScale.magnitude;
+
+        Transform spawn = getCurrentSpawn();
+        Vector3 force = getForce(spawn);
+
+        moveDie(d, spawn);
+
+
+        // Random Rotation
+        d.transform.Rotate(new Vector3(UnityEngine.Random.value * 360,
+                                       UnityEngine.Random.value * 360,
+                                       UnityEngine.Random.value * 360));
+
+        // Add Force
+        d.GetComponent<Rigidbody>().AddForce(force, ForceMode.Impulse);
+
+        // Add Random Torque
+        // -50
+        Vector3 tV = GameLogic.instance.rollValues.vtV;
+        d.GetComponent<Rigidbody>().AddTorque(new Vector3(tV[0] * UnityEngine.Random.value * dieMag,
+                                                          tV[1] * UnityEngine.Random.value * dieMag,
+                                                          tV[2] * UnityEngine.Random.value * dieMag), ForceMode.Impulse);
+
+
+        SoundControl.instance.playAudio();
+    }
+
+    static Vector3 getForce(Transform t)
+    {
+        /*
+         2  +  7
+        .5f +  4
+        -2  + -3
+        -35     20
+        */
+        Vector3 f1V = GameLogic.instance.rollValues.vf1V;
+        Vector3 f2V = GameLogic.instance.rollValues.vf2V;
+        Vector2 lV = GameLogic.instance.rollValues.vLV;
+
+        //Transform rT = GameObject.Find("area" + GameLogic.instance.playerLogic.currentPlayer().getPlayerName() + "/zoneServicable/Dice").transform;
+
+        Vector3 rollTarget = Vector3.zero + new Vector3(t.position.x * UnityEngine.Random.value,
+                                                        f1V[1] + f2V[0] * UnityEngine.Random.value,
+                                                        t.position.z * UnityEngine.Random.value);
+        /*
+        Vector3 rollTarget = Vector3.zero + new Vector3(f1V[0] + f2V[0] * UnityEngine.Random.value,
+                                                        f1V[1] + f2V[0] * UnityEngine.Random.value,
+                                                        f1V[2] + f2V[0] * UnityEngine.Random.value);
+        */
+        return Vector3.Lerp(t.position, rollTarget, 1).normalized * (lV[0] - UnityEngine.Random.value * lV[1]);
+    }
+
+}
+
+[System.Serializable]
+public class RollValues
+{
+    public float[] tV;
+    public float[] f1V;
+    public float[] f2V;
+    public float[] lV;
+    public Vector2 vLV;
+    public Vector3 vtV, vf1V, vf2V;
+
 }
 
 
-public struct MeshBuilder
+
+
+public static class CommonLogic
 {
-
-    public static Mesh BuildMesh(Mesh mesh, int size_x, int size_z)
+    public static int cycleValue(int value, int max) { return cycleValue(value, max, 0); }
+    public static int cycleValue(int value, int max, int start)
     {
-        int numTiles = size_x * size_z;
-        int numTris = numTiles * 2;
-
-        int vsize_x = size_x + 1;
-        int vsize_z = size_z + 1;
-        int numVerts = vsize_x * vsize_z;
-
-        float tileSize = 1.0f;
-        
-
-        // Generate the mesh data
-        Vector3[] vertices = new Vector3[numVerts];
-        Vector3[] normals = new Vector3[numVerts];
-        Vector2[] uv = new Vector2[numVerts];
-
-        int[] triangles = new int[numTris * 3];
-
-        int x, z;
-        for (z = 0; z < vsize_z; z++)
-        {
-            for (x = 0; x < vsize_x; x++)
-            {
-                vertices[z * vsize_x + x] = new Vector3(x * tileSize, 0, -z * tileSize);
-                normals[z * vsize_x + x] = Vector3.up;
-                uv[z * vsize_x + x] = new Vector2((float)x / size_x, 1f - (float)z / size_z);
-            }
-        }
-        Debug.Log("Done Verts!");
-
-        for (z = 0; z < size_z; z++)
-        {
-            for (x = 0; x < size_x; x++)
-            {
-                int squareIndex = z * size_x + x;
-                int triOffset = squareIndex * 6;
-                triangles[triOffset + 0] = z * vsize_x + x + 0;
-                triangles[triOffset + 2] = z * vsize_x + x + vsize_x + 0;
-                triangles[triOffset + 1] = z * vsize_x + x + vsize_x + 1;
-
-                triangles[triOffset + 3] = z * vsize_x + x + 0;
-                triangles[triOffset + 5] = z * vsize_x + x + vsize_x + 1;
-                triangles[triOffset + 4] = z * vsize_x + x + 1;
-            }
-        }
-
-        Debug.Log("Done Triangles!");
-
-        // Create a new Mesh and populate with the data
-        mesh.vertices = vertices;
-        mesh.triangles = triangles;
-        mesh.normals = normals;
-        mesh.uv = uv; 
-
-        Debug.Log("Done Mesh!");
-
-        return mesh;
+        int rValue = ++value;
+        if (rValue == max)
+            rValue = start;
+        return rValue;
     }
 }

@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-public class Draggable3D_Plane : MonoBehaviour {
+public class Draggable : MonoBehaviour {
 
     // Dragging Vars -----------------------------------
     public enum eDirection { X, Y, Z, STATIC };
@@ -20,7 +20,8 @@ public class Draggable3D_Plane : MonoBehaviour {
     // Zone Vars ---------------------------------------
     public Transform originalParent = null;
     public Transform placeHolderParent = null;
-
+    
+    public Transform dragArea;
     //public Transform lastParent = null;
 
     public Zone.Slot typeOfSlot;
@@ -28,6 +29,11 @@ public class Draggable3D_Plane : MonoBehaviour {
     RaycastHit hit;
     Zone zoneHit;
     // -------------------------------------------------
+    
+    void Start()
+    {
+        originalParent = this.transform.parent;
+    }
 
     void Update()
     {
@@ -37,34 +43,45 @@ public class Draggable3D_Plane : MonoBehaviour {
 
     void OnMouseDown()
     {
-        canDrag = GameLogic.instance.isValidDrag(this);
+        canDrag = GameLogic.instance.isValidClick(this);
         if (!canDrag) return;
            
         if (hideCursorOnDrag) Cursor.visible = false;
 
-
+        #region Save Positions
 
         lastPositX = getPosition(directionX);
         lastPositY = getPosition(directionY);
         lastPositZ = getPosition(directionZ);
 
-        
+        originalPosition = transform.position;
+
+        #endregion
+
+        #region Set Parents
+
+        originalParent = this.transform.parent;
+        placeHolderParent = getParentZone().transform;
+        this.transform.SetParent(dragArea);
+
+        #endregion
+
+        #region Lift Object
+
         liftOffset = lift * transform.localScale.y / offset;
 
-        originalPosition = transform.position;
         transform.position = new Vector3(transform.position.x,
                                          transform.position.y + liftOffset,
                                          transform.position.z);
 
-        originalParent = this.transform.parent;
-        placeHolderParent = originalParent.parent.Find("zoneOutline");
-        this.transform.SetParent(this.transform.parent.parent.parent.parent);
+        #endregion
+
 
         //GetComponent<CanvasGroup>().blocksRaycasts = false; 
         GetComponent<Rigidbody>().isKinematic = true;
         GameLogic.instance.gameLayout.checkZoneColor();
 
-        playDieSound(1);
+        SoundControl.instance.playAudio("dice", "pickup");
     }
 
     public void OnMouseDrag()
@@ -105,7 +122,7 @@ public class Draggable3D_Plane : MonoBehaviour {
                 }
             }
             else
-                placeHolderParent = originalParent.parent.Find("zoneOutline");
+                placeHolderParent = getParentZone().transform;
             GameLogic.instance.gameLayout.checkZoneColor();
         }
 
@@ -121,7 +138,7 @@ public class Draggable3D_Plane : MonoBehaviour {
         if (!canDrag) return;
         Cursor.visible = true;
 
-        if (originalParent.parent.Find("zoneOutline") != placeHolderParent)
+        if (getParentZone().transform != placeHolderParent)
         {
             // Either the object must match the drop zone OR (IE: weapon slot) 
             //      drop zone is of certain type that allows all objects (IE: discard)
@@ -168,13 +185,6 @@ public class Draggable3D_Plane : MonoBehaviour {
 
     public Zone getParentZone() { return originalParent.parent.gameObject.GetComponentInChildren<Zone>(); }
     public GameObject getParentArea() { return originalParent.parent.parent.gameObject; }
-
-
-    public void playDieSound(int i) {
-        Die d = transform.GetComponent<Die>();
-        if (d) {
-            d.setAudio(i);
-            d.playAudio();
-        }
-    }
+       
+    
 }

@@ -10,8 +10,7 @@ public class Zone : MonoBehaviour {
 
 
     public Slot typeOfSlot;
-
-    Draggable3D_Plane d;
+    
 
     public string zoneName;
 	public int numberItems;
@@ -19,18 +18,23 @@ public class Zone : MonoBehaviour {
     public bool checkOwnColor;
 
     public Transform diceHolder;
+    public Transform zoneHolder;
 
-	public Zone(string name) {
-		zoneName = name;
-	}
 
-	// Use this for initialization
-	void Start () {
-        //diceHolder = transform.parent.Find("Dice");
+	public Zone(Transform z) {
+		zoneName = z.name;
+        zoneHolder = z;
     }
-	
-	// Update is called once per frame
-	void Update () {
+
+    void Start()
+    {
+        if (zoneHolder != null)
+            zoneName = zoneHolder.name;
+    }
+
+
+    // Update is called once per frame
+    void Update () {
 
         if (checkOwnColor)
         {
