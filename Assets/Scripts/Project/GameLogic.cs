@@ -10,6 +10,18 @@ public struct GameState
 
     public static int cRound = 1;
 
+
+    public static bool hasDrawn;
+    public static bool hasRolled;
+    public static bool hasBought;
+
+
+    public static void resetAll()
+    {
+        hasDrawn = false;
+        hasRolled = false;
+        hasBought = false;
+    }
 };
 
 public class GameLogic : MonoBehaviour
@@ -32,52 +44,56 @@ public class GameLogic : MonoBehaviour
 
     void Awake()
     {
-        Debug.Log("Game Awake()");
         instance = this;
+        Debug.Log("Game Awake()");
+
+        GameState.newGame = true;
 
         Sides.createSides();
         cardLayout.buildMesh();
         stepLogic.initSteps();
-        //gameLayout.gatherDice();
-
+        playerLogic.initPlayers();
     }
 
     void Start()
     {
         gameLayout.initLayout();
-        GameState.newGame = true;
-        {
-            playerLogic.initPlayers();
-            Debug.Log("Game Started");
-            //stepLogic.performStep();
-
-            moveDice("zoneMB", "areaPlayer1/zoneSupply", 8, false);
-            moveDice("zoneMB", "areaPlayer2/zoneSupply", 8, false);
-        }
+        moveDice("areaMarket/zoneMB", "areaPlayer1/zoneSupply", 8, false);
+        moveDice("areaMarket/zoneMB", "areaPlayer2/zoneSupply", 8, false);
         GameState.newGame = false;
         GameObject.Find("gameStateStats").GetComponent<Text>().text = getGameDesc();
+        Debug.Log("Game Started");
     }
 
     void Update()
     {
         //if (Input.GetKeyUp("r"))        rollDice();
         if (Input.GetKeyUp("t"))   playerLogic.cyclePlayer();
-        else if (Input.GetKeyUp("p"))   printCards();
+        //else if (Input.GetKeyUp("p"))   
         else if (Input.GetKeyUp("m")) adminMoveDie();
         else if (Input.GetKeyUp("i")) adminIncScore();
         else if (Input.GetKey("d")) DieLogic.drawRollLine();
 
         else if (Input.GetMouseButtonDown(0))
         {
-            string z = gameLayout.checkAreaClick();
-            switch (z)
+            // CHECK IF ZONE CLICKED
+            Zone cZone = gameLayout.clickedZone();
+
+            if (cZone != null)
             {
-                case "zoneSupply":
-                    drawDice(5);
-                    break;
-                case "zoneRoll":
-                    moveDice(getCurrentZoneS(z), getCurrentZoneS("zoneServicable"));
-                    break;
+                
+                string z = cZone.zoneName;
+                switch (z)
+                {
+                    case "zoneSupply":
+                        if (getCurrentAreaS() == gameLayout.checkAreaClick(cZone) &&
+                            stepLogic.currentStep == StepLogic.eSteps.SCRY)
+                            drawDice(5);
+                        break;
+                    case "zoneRoll":
+                        moveDice(getCurrentZoneS(z), getCurrentZoneS("zoneServicable"));
+                        break;
+                }
             }
         }
         else if (Input.GetMouseButtonDown(1))
@@ -101,7 +117,8 @@ public class GameLogic : MonoBehaviour
             //}
         }
 
-
+        if (!GameState.newGame)
+            stepLogic.checkStepButton();
     }
 
     public void updateTurn()
@@ -109,28 +126,24 @@ public class GameLogic : MonoBehaviour
         if (stepLogic.cycleStep())
             if (playerLogic.cyclePlayer())
                 GameState.cRound++;
+
+        stepLogic.txtStep.text = getGameDesc();
     }
 
-    public Zone getCurrentZone(string z)
+    public string getGameDesc()
     {
-        return null;
+        return
+            "Player: " + playerLogic.currentPlayer().getPlayerName() + "\n" +
+            "Step: " + stepLogic.getName() + "\n" +
+            "Round: " + GameState.cRound + "\n" +
+            "Desc: " + stepLogic.getDesc();
     }
+    
     public string getCurrentZoneS(string z)  { return getCurrentAreaS() + "/" + z;                          }
     public string getCurrentAreaS()          { return "area" + playerLogic.currentPlayer().getPlayerName(); }
+    
 
-    public Card[] getCards()
-    {
-        //return zones[0].GetComponentsInChildren<Card>();
-        return null;
-    }
-
-    public void printCards()
-    {
-        foreach (Card card in getCards())
-        {
-            Debug.Log("Card: " + card);
-        }
-    }
+    #region DIE
 
     public void instantiateDie(Transform t)
     {
@@ -147,22 +160,14 @@ public class GameLogic : MonoBehaviour
         //d.transform.localScale = die.transform.localScale;
 
     }
-
-    public void rollDice()
-    {
-        Debug.Log(playerLogic.currentPlayer().getPlayerName() + " Rolling Dice");
-        foreach (Die die in gameLayout.getDiceInZone(playerLogic.currentPlayer().getPlayerName()))
-        {
-            DieLogic.rollDie(die);
-        }
-    }
-
+    
     //     IEnumerator
     public void drawDice(int amount)
     {
+        if (GameState.hasDrawn) return;
         int count = amount;
-
-        Transform supportT = GameObject.Find(getCurrentZoneS("zoneSupport/zoneOutline")).transform;
+        
+        Zone supportT = gameLayout.getZone(getCurrentZoneS("zoneSupport"));
         string support = getCurrentZoneS("zoneSupport");
         string supply = getCurrentZoneS("zoneSupply");
         string stored = getCurrentZoneS("zoneStored");
@@ -173,7 +178,7 @@ public class GameLogic : MonoBehaviour
         int iDraw;
         
 
-        if (h.Length == 0 && d.Length != 0)
+        if (h != null && h.Length == 0 && d.Length != 0)
         {
             moveDice(stored, supply, false);
             h = gameLayout.getDiceInZone(supply);
@@ -187,7 +192,7 @@ public class GameLogic : MonoBehaviour
                     moveDice(stored, supply, false)
                     continue
          */
-        while (count != 0 && h.Length != 0)
+        while (count != 0 && h.Length != 0 && h != null)
         {
             iDraw = UnityEngine.Random.Range(0, h.Length);
 
@@ -209,6 +214,7 @@ public class GameLogic : MonoBehaviour
         }
 
         Debug.Log("Moved " + (amount - count) + " dice !");
+        GameState.hasDrawn = true;
     }
 
     public void rollSimilarDice(Die d) {
@@ -225,6 +231,14 @@ public class GameLogic : MonoBehaviour
         }
     }
 
+    public void rollDice()
+    {
+        Debug.Log(playerLogic.currentPlayer().getPlayerName() + " Rolling Dice");
+        foreach (Die die in gameLayout.getDiceInZone(playerLogic.currentPlayer().getPlayerName()))
+        {
+            DieLogic.rollDie(die);
+        }
+    }
 
     public void moveDice(string f, string t)                    { moveDice(f, t, 0,   true);    }
     public void moveDice(string f, string t, int amt)           { moveDice(f, t, amt, true);    }
@@ -235,7 +249,7 @@ public class GameLogic : MonoBehaviour
 
         int count = amt;
         if (count <= 0 || count > dice.Length) count = dice.Length;
-                
+        Debug.Log("Moving " + count + " dice from " + f + " to " + t);
         for (int i = 0; i < count; i++)
         {
 
@@ -250,8 +264,11 @@ public class GameLogic : MonoBehaviour
             {
                 SoundControl.instance.playAudio("dice", "drop_cup");
             }
-        }        
+        }  
     }
+
+    #endregion
+
 
 
     public Zone getDraggedPlaceholder()
@@ -274,17 +291,19 @@ public class GameLogic : MonoBehaviour
         Draggable drag = draggedObject.GetComponent<Draggable>();
         if (!drag) return false;
 
+        Zone dragFrom = drag.getParentZone();
+
         //Die d = draggedObject.GetComponent<Die>();
         //if (!d) return false;
-        
+
         switch (stepLogic.cStep)
         {
             case 0:
-                
-                if ((playerLogic.cPlayer == 0 && 
-                     z.typeOfSlot == Zone.Slot.P1_STORED && drag.getParentZone().typeOfSlot == Zone.Slot.P1_SUMMONED) ||
-                    (playerLogic.cPlayer == 1 && 
-                     z.typeOfSlot == Zone.Slot.P2_STORED && drag.getParentZone().typeOfSlot == Zone.Slot.P2_SUMMONED))
+
+                if ((playerLogic.cPlayer == 0 &&
+                    (z == gameLayout.getZone("areaPlayer1/zoneStored") && dragFrom == gameLayout.getZone("areaPlayer1/zoneSummoned"))) ||
+                    (playerLogic.cPlayer == 1 &&
+                    (z == gameLayout.getZone("areaPlayer2/zoneStored") && dragFrom == gameLayout.getZone("areaPlayer2/zoneSummoned"))));
                     isValid = true;
                 break;
             case 1:
@@ -296,8 +315,8 @@ public class GameLogic : MonoBehaviour
             case 3:
                 isValid = false;
                 if (drag.getParentArea().name == "areaMarket" && 
-                    ((playerLogic.cPlayer == 0 && z.typeOfSlot == Zone.Slot.P1_STORED) ||
-                     (playerLogic.cPlayer == 1 && z.typeOfSlot == Zone.Slot.P2_STORED)))
+                    ((playerLogic.cPlayer == 0 && z == gameLayout.getZone("areaPlayer1/zoneStored")) ||
+                     (playerLogic.cPlayer == 1 && z == gameLayout.getZone("areaPlayer2/zoneStored"))))
                     isValid = true;
                 /*
                 if ((draggedObject) == Stall &&
@@ -324,9 +343,39 @@ public class GameLogic : MonoBehaviour
         return isValid;
     }
 
-    public bool isValidClick(Draggable drag)
+    public void dieDropped()
+    {
+        Die d = draggedObject.GetComponent<Die>();
+        gameLayout.checkZoneColor();
+
+
+
+        // Special Zone Cases (If drop is valid)
+        switch (draggedObject.transform.parent.parent.name)
+        {
+            case "zoneSupply":
+                //draggedObject
+                d.toggleVisibility(false);
+                SoundControl.instance.playAudio("dice", "drop_cup");
+                break;
+            default:
+                SoundControl.instance.playAudio("dice", "drop_table");
+                break;
+        }
+
+        draggedObject = null;
+    }
+
+    #region CLICK
+
+    public bool isValidDrag(Draggable drag)
     {
         bool canClick = false;
+
+        string zoneFrom;
+        string zoneTo;
+
+
         try {
             Debug.Log("Area: " + drag.getParentArea().name);
             // If draggable not in current player's area or the market, then do not allow to drag.
@@ -380,36 +429,71 @@ public class GameLogic : MonoBehaviour
         }
 
         if (canClick)
+        {
+            // HARD: Assume Drag is die?
+            SoundControl.instance.playAudio("dice", "pickup");
             return true;
+        }
         return false;
 
     }
 
-    
-    public void dieDropped()
+
+
+    // if (GameLogic.instance.isValidClick(this));
+
+    public bool isValidClick(Zone obj)
     {
-        Die d = draggedObject.GetComponent<Die>();
-        gameLayout.checkZoneColor();
+        bool canClick = false;
 
+        return canClick;
+    }
 
+    public bool isValidClick(Card obj)
+    {
+        bool canClick = false;
 
-        // Special Zone Cases (If drop is valid)
-        switch (draggedObject.transform.parent.parent.name)
+        return canClick;
+    }
+
+    public bool isValidClick(Die obj)
+    {
+        bool canClick = false;
+
+        return canClick;
+    }
+
+    public bool isValidClick(GameObject obj)
+    {
+        bool canClick = false;
+
+        // Where object was clicked
+        Zone where;
+
+        switch ((int)stepLogic.currentStep)
         {
-            case "zoneSupply":
-                //draggedObject
-                d.toggleVisibility(false);
-                SoundControl.instance.playAudio("dice", "drop_cup");
+            case 0: // SCORE
                 break;
-            default:
-                SoundControl.instance.playAudio("dice", "drop_table");
+            case 1: // SCRY
+                break;
+            case 2: // SPIN
+                break;
+            case 3: // SPEND
+                break;
+            case 4: // STRIKE
+                break; 
+            case 5: // SECURE
+                break;
+            default: // SH*T
                 break;
         }
-        
-        draggedObject = null;
-    }
-    
 
+        return canClick;
+    }
+
+    #endregion
+
+    #region PLAYER
 
     // ========= ------ ~~~ PLAYER _ CONTROL ~~~ ------ =========
     /*
@@ -433,17 +517,14 @@ public class GameLogic : MonoBehaviour
     }
     // ----------------------------------------------------------- }
 
+    #endregion
+                
 
-    public string getGameDesc()
-    {
-        return
-            "Player: " + playerLogic.currentPlayer().getPlayerName() + "\n" +
-            "Step: " + stepLogic.getName() + "\n" +
-            "Round: " + GameState.cRound + "\n" +
-            "Desc: " + stepLogic.getDesc();
-    }
+    #region ADMIN
 
     // Admin
+
+    public void adminStepNext() { stepLogic.stepNext(); }
 
     public void adminCloseNGWindow()
     {
@@ -537,6 +618,9 @@ public class GameLogic : MonoBehaviour
 
         adminIncStep();
     }
+
+    #endregion
+
 }
 
 
@@ -604,18 +688,98 @@ public class StepLogic
     public int cStep = 0;
 
     public StepInfo[] steps;
-    
+
+    public Button btnStep;
+    public Text txtStep;
 
     public bool cycleStep()
     {
         bool rBool = false;
         int start = 0;
         cStep = CommonLogic.cycleValue(cStep, steps.Length, start);
-        currentStep = (eSteps) cStep;
+        currentStep = (eSteps)cStep;
         if (cStep == start)
             rBool = true;
         return rBool;
     }
+
+    public bool stepNext()
+    {
+        stepEnd();
+        bool rBool = cycleStep();
+        stepBegin();
+        return rBool;
+    }
+
+    public void stepEnd()
+    {
+        //GameState.resetAll();
+
+    }
+
+    public void stepBegin()
+    {
+        //checkStepButton();
+    }
+
+    public void checkStepButton()
+    {
+        btnStep.interactable = stepButtonInteractable();
+    }
+
+    public bool stepButtonInteractable()
+    {
+        bool rBool = false;
+        Die[] d;
+        
+        string cArea = GameLogic.instance.getCurrentAreaS();
+
+        switch ((int)currentStep)
+        {
+            case 0:  // SCORE
+                if (!GameLogic.instance.gameLayout.isDiceInZone("zoneSummoned"))
+                    rBool = true;
+                break;
+            case 1:  // SCRY
+                if (GameState.hasDrawn)
+                    rBool = true;
+                break;
+            case 2:  // SPIN
+                if (GameLogic.instance.gameLayout.isDiceInZone("zoneServicable"))
+                    rBool = true;
+                break;
+            case 3:  // SPEND
+                // Just warn if things are left in zoneServicable
+                rBool = true;
+                break;
+            case 4:  // STRIKE
+                // If the defense value of opponent is down to 0
+                rBool = true;
+                break;
+            case 5:  // SECURE
+                if (!GameLogic.instance.gameLayout.isDiceInZone("zoneServicable") &&
+                    !GameLogic.instance.gameLayout.isDiceInZone("zoneSpent"))
+                    rBool = true;
+
+                // NOTE: Long winded && ... ugh  --- gameLayout.isDiceInZone()   - true or false
+                /*
+                d = GameLogic.instance.gameLayout.getDiceInZone("zoneSpent");
+                if (d == null || d.Length == 0)
+                {
+                    d = GameLogic.instance.gameLayout.getDiceInZone("zoneServicable");
+                    if (d == null || d.Length == 0)
+                        rBool = true;
+                }
+                */
+                break;
+            default:
+                break;
+        }
+
+        return rBool;
+    }
+
+
 
     public string getName() { return steps[cStep].getName(); }
     public string getDesc() { return steps[cStep].getDesc(); }
@@ -673,10 +837,16 @@ public static class DieLogic
 {
     public static void moveDie(Die d, Zone z)
     {
-        // HARD: Know that a "Zone"'s parent contains a GameObject called "Dice" that will parent the "Die"
-        d.transform.SetParent(z.transform.parent.Find("Dice"));
+        if (z != null)
+        {
+            // Try to update the Die's Old Zones' and New Zones' GameZone Die[]
+            d.transform.SetParent(z.holders.diceHolder);
 
-        d.offsetDie();
+            d.offsetDie();
+        } else
+        {
+            Debug.Log("Zone moving to doesn't exist");
+        }
     }
 
     public static void moveDie(Die d, Transform t)
@@ -711,24 +881,24 @@ public static class DieLogic
         //return b;
     }
 
-    public static Transform getCurrentSpawn()
+    public static Zone getCurrentSpawn()
     {
         //return GameObject.Find(GameLogic.instance.getCurrentZoneS("zoneRoll")).GetComponentInChildren<Zone>().transform;
-        return GameLogic.instance.gameLayout.getZone("zoneRoll").transform;
+        return GameLogic.instance.gameLayout.getZone("zoneRoll");
     }
 
     public static void drawRollLine()
     {
-        Transform s = getCurrentSpawn();
-        Debug.DrawLine(s.position, getForce(s));
+        Zone s = getCurrentSpawn();
+        Debug.DrawLine(s.transform.position, getForce(s.transform));
     }
 
     public static void rollDie(Die d)
     {
         float dieMag = d.transform.localScale.magnitude;
 
-        Transform spawn = getCurrentSpawn();
-        Vector3 force = getForce(spawn);
+        Zone spawn = getCurrentSpawn();
+        Vector3 force = getForce(spawn.transform);
 
         moveDie(d, spawn);
 
@@ -796,6 +966,13 @@ public class RollValues
 
 public static class CommonLogic
 {
+    public const string TAG_HOLDER_AREA  = "AreaHolder";
+    public const string TAG_HOLDER_ZONE  = "ZoneHolder";
+    public const string TAG_HOLDER_DICE  = "DiceHolder";
+    public const string TAG_HOLDER_CARD  = "CardHolder";
+    public const string TAG_HOLDER_TOKEN = "TokenHolder";
+
+
     public static int cycleValue(int value, int max) { return cycleValue(value, max, 0); }
     public static int cycleValue(int value, int max, int start)
     {

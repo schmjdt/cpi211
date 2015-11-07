@@ -18,14 +18,13 @@ public class Draggable : MonoBehaviour {
     // -------------------------------------------------
 
     // Zone Vars ---------------------------------------
-    public Transform originalParent = null;
-    public Transform placeHolderParent = null;
+    public Transform originalParent = null;      // XXXHolder where drag came from
+    public Zone placeHolderParent = null;   // Zone dragged over
     
+
     public Transform dragArea;
     //public Transform lastParent = null;
-
-    public Zone.Slot typeOfSlot;
-
+    
     RaycastHit hit;
     Zone zoneHit;
     // -------------------------------------------------
@@ -37,16 +36,16 @@ public class Draggable : MonoBehaviour {
 
     void Update()
     {
-
-        Debug.DrawLine(transform.position, new Vector3(transform.position.x, transform.position.y - 10000f, transform.position.z));
+        //Debug.DrawLine(transform.position, new Vector3(transform.position.x, transform.position.y - 10000f, transform.position.z));
     }
 
     void OnMouseDown()
     {
-        canDrag = GameLogic.instance.isValidClick(this);
+        canDrag = GameLogic.instance.isValidDrag(this);
         if (!canDrag) return;
            
         if (hideCursorOnDrag) Cursor.visible = false;
+        GetComponent<Rigidbody>().isKinematic = true;
 
         #region Save Positions
 
@@ -61,7 +60,7 @@ public class Draggable : MonoBehaviour {
         #region Set Parents
 
         originalParent = this.transform.parent;
-        placeHolderParent = getParentZone().transform;
+        placeHolderParent = getParentZone();
         this.transform.SetParent(dragArea);
 
         #endregion
@@ -78,17 +77,16 @@ public class Draggable : MonoBehaviour {
 
 
         //GetComponent<CanvasGroup>().blocksRaycasts = false; 
-        GetComponent<Rigidbody>().isKinematic = true;
-        GameLogic.instance.gameLayout.checkZoneColor();
 
-        SoundControl.instance.playAudio("dice", "pickup");
+        // CHANGE: Put on GameLogic's isValidDrag
+        //GameLogic.instance.gameLayout.checkZoneColor();
+
     }
 
     public void OnMouseDrag()
     {
         if (!canDrag) return;
-        //OnDrag(eventData); 
-
+        
         changeX = -(lastPositX - getPosition(directionX)) * transform.localScale.x / offset * CameraControl.playerCameraOffset;
         changeY = (lastPositY - getPosition(directionY)) * transform.localScale.y / offset * CameraControl.playerCameraOffset;
         changeZ = -(lastPositZ - getPosition(directionZ)) * transform.localScale.z / offset * CameraControl.playerCameraOffset;
@@ -97,9 +95,7 @@ public class Draggable : MonoBehaviour {
         transform.position = new Vector3(transform.position.x + (changeX),
                                             transform.position.y + (changeY),
                                             transform.position.z + (changeZ));
-
-        //transform.Translate(changeX, changeY, changeZ);
-
+        
 
         Ray ray = Camera.main.ScreenPointToRay(Camera.main.WorldToScreenPoint(transform.position));
         if (Physics.Raycast(ray, out hit))
@@ -115,19 +111,18 @@ public class Draggable : MonoBehaviour {
             zoneHit = hit.transform.GetComponent<Zone>();
             if (zoneHit != null)
             {
-                //if (this.typeOfSlot == zoneHit.typeOfSlot)
                 if (GameLogic.instance.isValidDrop(zoneHit))
                 {
-                    placeHolderParent = zoneHit.transform;
+                    placeHolderParent = zoneHit;
+                    //zoneHit.checkOwnColor = true;  // checkZoneColor() code below does this for now
                 }
             }
             else
-                placeHolderParent = getParentZone().transform;
-            GameLogic.instance.gameLayout.checkZoneColor();
+                placeHolderParent = getParentZone();
+            // NOTE:  Find better way to change just the last zone checked!
+            GameLogic.instance.gameLayout.checkZoneColor(); 
         }
-
-        //lastPositX = Camera.main.ScreenToWorldPoint(Input.mousePosition).x; 
-        //lastPositY = Camera.main.ScreenToWorldPoint(Input.mousePosition).y;
+        
         lastPositX = getPosition(directionX);
         lastPositY = getPosition(directionY);
         lastPositZ = getPosition(directionZ);
@@ -137,19 +132,15 @@ public class Draggable : MonoBehaviour {
     {
         if (!canDrag) return;
         Cursor.visible = true;
+        GetComponent<Rigidbody>().isKinematic = false;
 
-        if (getParentZone().transform != placeHolderParent)
+        if (getParentZone() != placeHolderParent)
         {
-            // Either the object must match the drop zone OR (IE: weapon slot) 
-            //      drop zone is of certain type that allows all objects (IE: discard)
-            //Zone p = placeHolderParent.GetComponent<Zone>(); 
-            //if (p.typeOfSlot == this.typeOfSlot || p.typeOfSlot == Draggable.Slot.DISCARD)
-
-            this.originalParent = placeHolderParent.parent.Find("Dice");
+            this.originalParent = placeHolderParent.holders.diceHolder;
             transform.position = new Vector3(transform.position.x,
-                                                transform.position.y - liftOffset,
-                                                transform.position.z);
-            //transform.position = new Vector3(0f, .5f, 0f);
+                                             transform.position.y - liftOffset,
+                                             transform.position.z);
+            
         }
         else
         {
@@ -162,7 +153,6 @@ public class Draggable : MonoBehaviour {
         //GetComponent<CanvasGroup>().blocksRaycasts = true; 
 
         canDrag = false;
-        GetComponent<Rigidbody>().isKinematic = false;
 
         GameLogic.instance.dieDropped();
     }
@@ -183,6 +173,7 @@ public class Draggable : MonoBehaviour {
         }
     }
 
+    // HARD: blarg...  die knows zoneHolder too ??? meh
     public Zone getParentZone() { return originalParent.parent.gameObject.GetComponentInChildren<Zone>(); }
     public GameObject getParentArea() { return originalParent.parent.parent.gameObject; }
        

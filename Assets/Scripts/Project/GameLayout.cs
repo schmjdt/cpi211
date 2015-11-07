@@ -15,7 +15,7 @@ public class GameLayout
 
     public void initLayout()
     {
-        GameObject[] areas = GameObject.FindGameObjectsWithTag("AreaHolder");
+        GameObject[] areas = GameObject.FindGameObjectsWithTag(CommonLogic.TAG_HOLDER_AREA);
 
         gameAreas = new GameArea[areas.Length];
 
@@ -49,13 +49,37 @@ public class GameLayout
         //return b;
     }
 
-    public string checkAreaClick()
+    public GameZone getGameZone(Zone z)
     {
-        Zone z = clickedZone();
-        if (z)
-            return z.zoneName;
-        return null;
+        if (z == null) return null;
+
+        GameZone rZone = null;
+        foreach (GameArea area in gameAreas)
+        {
+            foreach (GameZone zone in area.areaZones)
+            {
+                if (zone.zone == z)
+                    rZone = zone;
+            }
+        }
+        return rZone;
     }
+
+
+    public string checkAreaClick() { return checkAreaClick(clickedZone()); }
+
+    public string checkAreaClick(Zone z)
+    {
+        string rString = "";
+
+        GameZone zone = getGameZone(z);
+
+        if (zone != null)
+            rString = zone.getAreaT().name;
+
+        return rString;
+    }
+
 
     public void checkZoneColor()
     {
@@ -109,16 +133,49 @@ public class GameLayout
         return gameAreas[a].areaZones[z].dice;
     }
 
+    public Die[] getDiceInZone(string a, string z)
+    {
+        return getDiceInZone(a + "/" + z);
+    }
+
     public Die[] getDiceInZone(Zone z)
     {
-        return getDiceInZone(z.name);
+        return getGameZone(z).dice;
     }
 
-    public Die[] getDiceInZone(string zoneName)
+    public Die[] getDiceInZone(string z)
     {
-        return getDiceInZone("", zoneName);
+        Die[] rDice = null;
+        Zone zone = getZone(z);
+        if (zone != null)
+        {
+            GameZone gZ = getGameZone(zone);
+            if (gZ != null)
+            {
+                // NOTE:  Find better spot for this?
+                //      Only update when KNOW there was a CHANGE
+                //      This updates EVERY TIME just get list [not saving anything]
+                //          DieLogic.moveDie()
+                gZ.gatherDice();
+                rDice = gZ.dice;
+            }
+        }
+        return rDice;
     }
 
+    public bool isDiceInZone(string z)
+    {
+        bool rBool;
+
+        Die[] d = getDiceInZone(z);
+
+        if (d == null || d.Length == 0) rBool = false;
+        else rBool = true;
+
+        return rBool;
+    }
+
+    /*
     public Die[] getDiceInZone(string a, string z)
     {
         string obj = a + "/";
@@ -132,6 +189,7 @@ public class GameLayout
         }
         return dice;
     }
+    */
 
     public GameObject getZoneDiceParent(string z)
     {
@@ -145,7 +203,7 @@ public class GameLayout
         {
             GameZone gZ = gA.getZone(z);
             if (gZ != null)
-                return gZ.diceHolder.gameObject;
+                return gZ.getDiceT().gameObject;
         }
         return null;
         
@@ -172,6 +230,7 @@ public class GameArea
 
     public GameArea(Transform t)
     {
+        Debug.Log("GameZone " + t.name + " starting");
         areaHolder = t;
         areaName = t.name;
 
@@ -188,6 +247,7 @@ public class GameArea
                 break;
         }
 
+        Debug.Log("GameArea " + t.name + " created");
         createZones();
     }
 
@@ -210,12 +270,12 @@ public class GameArea
 
     public void createZones()
     {
-        Transform[] zones = LayoutLogic.getSpecificTransformsTag("ZoneHolder", areaHolder);
+        Transform[] zones = LayoutLogic.getSpecificTransformsTag(CommonLogic.TAG_HOLDER_ZONE, areaHolder);
         //GameObject[] zones = GameObject.FindGameObjectsWithTag("ZoneHolder");
         
         for (int i = 0; i < zones.Length; i++)
         {
-            areaZones.Add(new GameZone(zones[i]));
+            areaZones.Add(new GameZone(areaHolder, zones[i]));
         }
     }
 
@@ -253,36 +313,34 @@ public class GameZone
     public Die[] dice;
     public Card[] cards;
     //public Token[] tokens;
+    
+    public Holders holders = new Holders();
 
-    public Transform zoneHolder;
-    public Transform diceHolder;
-    public Transform cardHolder;
-    public Transform tokenHolder;
-
-    public GameZone(Transform z)
+    public GameZone(Transform a, Transform z)
     {
-        this.zone = z.GetComponentInChildren<Zone>();
-        this.zoneName = z.name;
+        Debug.Log("GameZone " + a.name + "/" + z.name + " starting");
 
-        zoneHolder = z;
+        zoneName = z.name;
+        zone = z.GetComponentInChildren<Zone>();
+
+        holders.setMainHolders(a, z);
         
-        diceHolder = LayoutLogic.getSpecificTransformTag("DieHolder", z);
-        cardHolder = LayoutLogic.getSpecificTransformTag("CardHolder", z);
-        tokenHolder = LayoutLogic.getSpecificTransformTag("TokenHolder", z);
+        holders.setChildHolders(
+                                LayoutLogic.getSpecificTransformTag(CommonLogic.TAG_HOLDER_DICE,  z),
+                                LayoutLogic.getSpecificTransformTag(CommonLogic.TAG_HOLDER_CARD,  z),
+                                LayoutLogic.getSpecificTransformTag(CommonLogic.TAG_HOLDER_TOKEN, z));
 
-        //diceHolder = z.Find("Dice");
-        //cardHolder = z.Find("Cards");
-        //tokenHolder = z.Find("Tokens");
-
-        this.zone.zoneHolder = z;
-        this.zone.diceHolder = diceHolder;
+        zone.holders = holders;
 
         checkIfCard();
+        Debug.Log("GameZone " + a.name + "/" + z.name + " created");
     }
 
     public string getName() { return zoneName; }
-    public Transform getDiceT() { return diceHolder; }
-    public Transform getCardT() { return cardHolder; }
+    public Transform getDiceT() { return holders.diceHolder; }
+    public Transform getCardT() { return holders.cardHolder; }
+    public Transform getAreaT() { return holders.areaHolder; }
+
 
     public Card getCard() { return getCard(0); }
     public Card getCard(int i) { return cards[i]; }
@@ -291,7 +349,7 @@ public class GameZone
 
     public void gatherDice()
     {
-        this.dice = diceHolder.GetComponentsInChildren<Die>();
+        this.dice = getDiceT().GetComponentsInChildren<Die>();
     }
 
     public void checkZoneColor()
@@ -301,17 +359,17 @@ public class GameZone
 
     public void checkIfCard()
     {
-        if (cardHolder == null || cardHolder.childCount == 0)
+        if (getCardT() == null || getCardT().childCount == 0)
             return;
 
-        Card card = cardHolder.GetComponentInChildren<Card>();
+        Card card = getCardT().GetComponentInChildren<Card>();
         if (card)
         {
             card.initCard();
             
             for (int i = 0; i < card.totalDice; i++)
             {
-                GameLogic.instance.instantiateDie(diceHolder);
+                GameLogic.instance.instantiateDie(getDiceT());
             }
 
             gatherDice();
@@ -325,6 +383,29 @@ public class GameZone
         {
             gatherDice();
         }
+    }
+}
+
+[System.Serializable]
+public class Holders
+{
+    public Transform areaHolder;
+    public Transform zoneHolder;  // parent to all below
+    public Transform diceHolder;  // die parent
+    public Transform cardHolder;
+    public Transform tokenHolder;
+
+    public void setMainHolders(Transform a, Transform z)
+    {
+        areaHolder = a;
+        zoneHolder = z;
+    }
+
+    public void setChildHolders(Transform d, Transform c, Transform t)
+    {
+        diceHolder = d;
+        cardHolder = c;
+        tokenHolder = t;
     }
 }
 
