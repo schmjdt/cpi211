@@ -3,7 +3,7 @@ using System.Collections;
 
 public class CameraControl : MonoBehaviour
 {
-    //public static CameraControl instance;
+    public static CameraControl instance;
     // Player Camera 
     public Camera playerCamera;
 	public GameObject[] camPlayerPositions;
@@ -27,7 +27,7 @@ public class CameraControl : MonoBehaviour
 
     void Awake()
     {
-        //instance = this;
+        instance = this;
     }
 
     // Use this for initialization

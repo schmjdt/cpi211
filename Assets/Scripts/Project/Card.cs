@@ -146,12 +146,12 @@ public class Card : MonoBehaviour {
     */
 
     public Side getSide(int i) {
-        Debug.Log(i);
+        //Debug.Log(i);
         return Sides.getSide((int)sides[i]);
     }
 
     public int getSideValue(int i, Side.valueTypes vt) {
-        Debug.Log(i + "/" + vt);
+        //Debug.Log(i + "/" + vt);
         return getSide(i).getStat(vt);
     }
 

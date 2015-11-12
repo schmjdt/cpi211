@@ -177,7 +177,9 @@ public class Die : MonoBehaviour, IComparable {
 
     public void offsetDie(float x, float y, float z)
     {
-        this.transform.localPosition = new Vector3(x, y, z);
+        this.transform.localPosition = new Vector3( x, 
+                                                    y, 
+                                                    z);
     }
 
 

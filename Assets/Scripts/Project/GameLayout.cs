@@ -143,6 +143,12 @@ public class GameLayout
         return getGameZone(z).dice;
     }
 
+
+    public Die[] getDiceInZoneNext(string z)
+    {
+        return getDiceInZone("area" + GameLogic.instance.playerLogic.nextPlayer().getPlayerName() + "/" + z);
+    }
+
     public Die[] getDiceInZone(string z)
     {
         Die[] rDice = null;
@@ -493,6 +499,7 @@ public struct LayoutLogic
         GameObject[] dT = checkTagged(tag);
         if (dT == null)
             dT = newTagObject(tag);
+
         
         foreach (GameObject item in dT)
         {

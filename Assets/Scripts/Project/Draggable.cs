@@ -18,9 +18,12 @@ public class Draggable : MonoBehaviour {
     // -------------------------------------------------
 
     // Zone Vars ---------------------------------------
-    public Transform originalParent = null;      // XXXHolder where drag came from
-    public Zone placeHolderParent = null;   // Zone dragged over
+    public Transform originalParent = null;      // XXXHolder where drag came from: dieHolder, cardHolder, tokenHolder
+    public Zone zonePlaceholder = null;   // Zone dragged over:
     
+    /*
+    zoneHolder
+    */
 
     public Transform dragArea;
     //public Transform lastParent = null;
@@ -32,6 +35,10 @@ public class Draggable : MonoBehaviour {
     void Start()
     {
         originalParent = this.transform.parent;
+        zonePlaceholder = this.transform.parent.parent.GetComponentInChildren<Zone>();
+        
+        //originalZoneHolder = placeHolderParent.holders.zoneHolder;
+
     }
 
     void Update()
@@ -60,7 +67,7 @@ public class Draggable : MonoBehaviour {
         #region Set Parents
 
         originalParent = this.transform.parent;
-        placeHolderParent = getParentZone();
+        zonePlaceholder = getParentZone();
         this.transform.SetParent(dragArea);
 
         #endregion
@@ -97,12 +104,13 @@ public class Draggable : MonoBehaviour {
                                             transform.position.z + (changeZ));
         
 
+        /*
         Ray ray = Camera.main.ScreenPointToRay(Camera.main.WorldToScreenPoint(transform.position));
         if (Physics.Raycast(ray, out hit))
         {
             Debug.Log("Camera Ray = " + hit.collider.name);
         }
-
+        */
 
 
         if (Physics.Raycast(transform.position, new Vector3(0, -transform.position.y, 0), out hit))
@@ -113,12 +121,12 @@ public class Draggable : MonoBehaviour {
             {
                 if (GameLogic.instance.isValidDrop(zoneHit))
                 {
-                    placeHolderParent = zoneHit;
+                    zonePlaceholder = zoneHit;
                     //zoneHit.checkOwnColor = true;  // checkZoneColor() code below does this for now
                 }
             }
             else
-                placeHolderParent = getParentZone();
+                zonePlaceholder = getParentZone();
             // NOTE:  Find better way to change just the last zone checked!
             GameLogic.instance.gameLayout.checkZoneColor(); 
         }
@@ -134,9 +142,9 @@ public class Draggable : MonoBehaviour {
         Cursor.visible = true;
         GetComponent<Rigidbody>().isKinematic = false;
 
-        if (getParentZone() != placeHolderParent)
+        if (getParentZone() != zonePlaceholder)
         {
-            this.originalParent = placeHolderParent.holders.diceHolder;
+            this.originalParent = zonePlaceholder.holders.diceHolder;
             transform.position = new Vector3(transform.position.x,
                                              transform.position.y - liftOffset,
                                              transform.position.z);
@@ -157,6 +165,11 @@ public class Draggable : MonoBehaviour {
         GameLogic.instance.dieDropped();
     }
 
+    public void setPlaceHolderParent()
+    {
+
+    }
+
 
     float getPosition(eDirection d)
     {
@@ -174,8 +187,28 @@ public class Draggable : MonoBehaviour {
     }
 
     // HARD: blarg...  die knows zoneHolder too ??? meh
-    public Zone getParentZone() { return originalParent.parent.gameObject.GetComponentInChildren<Zone>(); }
-    public GameObject getParentArea() { return originalParent.parent.parent.gameObject; }
+    public Zone getParentZone() { return originalParent.parent.GetComponentInChildren<Zone>(); }
+    //public Zone getParentZone() { return zonePlaceholder; }
+    public Transform getParentArea() { return originalParent.parent.parent; }
+
+    public void setParentZone(Zone z)
+    {
+        zonePlaceholder = z;
+        originalParent = z.holders.diceHolder;
+    }
        
     
+}
+
+
+public class Draggable_Die : Draggable
+{
+}
+
+public class Draggable_Card : Draggable
+{
+}
+
+public class Draggable_Token : Draggable
+{
 }
