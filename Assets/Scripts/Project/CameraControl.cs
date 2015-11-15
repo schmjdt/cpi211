@@ -40,6 +40,8 @@ public class CameraControl : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (GameState.isPaused) return;
+
         //if (Input.GetKey(KeyCode.LeftControl))
         if (Input.GetAxis("Mouse ScrollWheel") > 0 || Input.GetMouseButton(3) || Input.GetKey(zoomKey))
         {

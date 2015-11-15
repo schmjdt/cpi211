@@ -7,7 +7,7 @@ using UnityEngine.UI;
 public class GameLayout
 {
     public GameArea[] gameAreas;
-
+    
     public Transform scorePositions;
     public Transform[] scoreTokens;
     public Transform[] positScores;
@@ -48,6 +48,15 @@ public class GameLayout
         return z;
         //return b;
     }
+
+
+    public Card getCard(string s)
+    {
+        // Returns first card
+        return getGameZone(s).cards[0];
+    }
+
+    public GameZone getGameZone(string s) { return getGameZone(getZone(s)); }
 
     public GameZone getGameZone(Zone z)
     {
@@ -317,7 +326,8 @@ public class GameZone
     public string zoneName;
     public Zone zone;
     public Die[] dice;
-    public Card[] cards;
+    public List<Card> cards = new List<Card>();
+    //public Card[] cards;
     //public Token[] tokens;
     
     public Holders holders = new Holders();
@@ -337,6 +347,7 @@ public class GameZone
                                 LayoutLogic.getSpecificTransformTag(CommonLogic.TAG_HOLDER_TOKEN, z));
 
         zone.holders = holders;
+        zone.zoneName = holders.zoneHolder.name;
 
         checkIfCard();
         Debug.Log("GameZone " + a.name + "/" + z.name + " created");
@@ -372,7 +383,8 @@ public class GameZone
         if (card)
         {
             card.initCard();
-            
+            cards.Add(card);
+
             for (int i = 0; i < card.totalDice; i++)
             {
                 GameLogic.instance.instantiateDie(getDiceT());

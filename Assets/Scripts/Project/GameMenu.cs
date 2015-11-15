@@ -28,6 +28,8 @@ public class GameMenu : MonoBehaviour {
     {
         panelOpen = b;
         menuPanel.SetActive(b);
+
+        GameLogic.instance.adminTogglePause();
     }
     
     public void btnExit()
@@ -39,6 +41,7 @@ public class GameMenu : MonoBehaviour {
 
     public void gotoScene(string s)
     {
+        GameState.isPaused = false;
         Application.LoadLevel(s);
     }
 }

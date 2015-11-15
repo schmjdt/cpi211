@@ -150,7 +150,7 @@ public struct TextureBuilder
         // Points:
         else if (x == size_x - 2 && y == size_z - 2)
         {
-            p = texInfos[0].texColors[cardInfo.points];
+            p = texInfos[0].texColors[cardInfo.score];
         }
         // ::Texture [1]::
         // Sides:

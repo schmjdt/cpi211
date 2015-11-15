@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
+using System;
 
 [ExecuteInEditMode]
 public class Card : MonoBehaviour {
@@ -80,7 +81,15 @@ public class Card : MonoBehaviour {
 			visible = false;
     	}
     }
-    
+
+    public void setSides()
+    {
+        for (int i = 0; i < sides.Length; i++)
+        {
+            sides[i] = (Sides.sideValue)cardInfo.sideID[i];
+        }
+    }
+
     public void initCard()
     {
         //sides = new Side[dieSize];
@@ -90,7 +99,11 @@ public class Card : MonoBehaviour {
 
         buildMesh(GameLogic.instance.cardLayout.mesh);
         //setDice();
+
+        setSides();
+
     }
+
 
     public void buildMesh(Mesh mesh)
     {
@@ -150,9 +163,14 @@ public class Card : MonoBehaviour {
         return Sides.getSide((int)sides[i]);
     }
 
-    public int getSideValue(int i, Side.valueTypes vt) {
+    public int getSideValue(int i, Side.eValueTypes vt) {
         //Debug.Log(i + "/" + vt);
         return getSide(i).getStat(vt);
+    }
+
+    public Side.eSideType getSideType(int i)
+    {
+        return getSide(i).getType();
     }
 
     public override string ToString() { return cardName; }
@@ -170,7 +188,7 @@ public class CardInfo
     [Range(0, 9)]
     public int cost;
     [Range(0, 9)]
-    public int points;
+    public int score;
 
 
     public Color insideColor;
@@ -210,40 +228,68 @@ public class CardInfo
     public void randomValues()
     {
         cost = UnityEngine.Random.Range(0, 9);
-        points = UnityEngine.Random.Range(0, 9);
+        score = UnityEngine.Random.Range(0, 9);
     }
 
     public void randomSides()
     {
         for (int i = 0; i < 6; i++)
         {
-            sideID[i] = UnityEngine.Random.Range(0, 9);
+            sideID[i] = UnityEngine.Random.Range(0, 3);
         }
     }
 }
 
 public static class Sides
 {
-    public enum sideValue { E_1, E_2, C_112 };
-    static Side[] sides = new Side[3];
+    public enum sideValue { E_1, E_2, C_112, C_232 };
+    //static Side[] sides = new Side[3];
+    static List<Side> sides = new List<Side>();
 
     public static void createSides() {
+        sides.Add(new Side(1));
+        sides.Add(new Side(2));
+        sides.Add(new Side(1, 1, 2));
+        sides.Add(new Side(2, 3, 2));
+        /*
         sides[0] = new Side(1);
         sides[1] = new Side(2);
         sides[2] = new Side(1, 1, 2);
+        sides[3] = new Side(2, 3, 2);
+        */
     }
     public static Side getSide(int i) {
         return sides[i];
+    }
+
+
+    public static sideValue getSideValue(int i)
+    {
+
+        switch(i)
+        {
+            case 1:
+                return sideValue.E_2;
+            case 2:
+                return sideValue.C_112;
+            case 3:
+                return sideValue.C_232;
+            default:
+                return sideValue.E_1;
+        }
     }
 }
 
 
 public class Side
 {
-    public enum valueTypes { ENERGY, COST, ATTACK, DEFENSE, LEVEL, STAR };
+    public enum eValueTypes { ENERGY, COST, ATTACK, DEFENSE, LEVEL, STAR };
+    public enum eSideType { ENERGY, SUMMONABLE, CASTABLE };
 
     int energy, cost, attack, defense, level;
     int star;
+
+    eSideType sideType;
 
     public Side(int e)                              { setVals(e, 0, 0, 0, 0); }
     public Side(       int c, int a, int d)         { setVals(0, c, a, d, 0); }
@@ -257,18 +303,25 @@ public class Side
         attack = a;
         defense = d;
         level = 1;
+
+        if (e > 0)
+            sideType = eSideType.ENERGY;
+        else if (c > 0 || a > 0 || d > 0)
+            sideType = eSideType.SUMMONABLE;
+        else
+            sideType = eSideType.CASTABLE;
     }
 
     public void setStar(int s) { star = s; }
 
-    public int getStat(valueTypes vt) {
+    public int getStat(eValueTypes vt) {
         switch (vt) {
-            case valueTypes.ENERGY:     return energy;
-            case valueTypes.COST:       return cost;
-            case valueTypes.ATTACK:     return attack;
-            case valueTypes.DEFENSE:    return defense;
-            case valueTypes.LEVEL:      return level;
-            case valueTypes.STAR:       return star;
+            case eValueTypes.ENERGY:     return energy;
+            case eValueTypes.COST:       return cost;
+            case eValueTypes.ATTACK:     return attack;
+            case eValueTypes.DEFENSE:    return defense;
+            case eValueTypes.LEVEL:      return level;
+            case eValueTypes.STAR:       return star;
             default:                    return 0;
         }
     }
@@ -279,4 +332,6 @@ public class Side
     public int getDefense() { return defense;   }
     public int getLevel()   { return level;     }
     public int getStar()    { return star;      }
+
+    public eSideType getType() { return sideType;  }
 }

@@ -7,18 +7,21 @@ using System;
 [RequireComponent(typeof(BoxCollider))]
 [RequireComponent(typeof(Draggable))]
 public class Die : MonoBehaviour, IComparable {
+    public enum eDieState { SULK, SPEND, SUMMON };  // Will determine if Die can go to SPENT zone
     enum eDieColor { RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE };
-
 
     public Color colorInside;
     public Color colorOutside;
     public int dieValue;
+    public eDieState dieState;
 
     //eDieColor dieColorValue;
 
     public Card card;
 
     int sideStatValue;
+    Side.eSideType sideStatType;
+    
 
     bool moving;
 
@@ -105,10 +108,17 @@ public class Die : MonoBehaviour, IComparable {
         return false;
     }
 
-    public int getSideValue(Side.valueTypes vt) {
-        sideStatValue = card.getSide(dieValue).getStat(vt);
+    public int getSideValue(Side.eValueTypes vt) {
+        sideStatValue = card.getSide(dieValue - 1).getStat(vt);
         return sideStatValue;
     }
+
+    public Side.eSideType getSideType()
+    {
+        sideStatType = card.getSideType(dieValue - 1);
+        return sideStatType;
+    }
+
 
     public void updateValue()
     {
