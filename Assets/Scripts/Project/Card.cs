@@ -17,12 +17,13 @@ public class Card : MonoBehaviour {
 
     public Texture cardImage;
     public CardInfo cardInfo;
+
+    public bool randomizeStart;
     
-    bool visible;
+    public bool visible;
 
     // Use this for initialization 
     void Start () {
-
     }
 
     // Update is called once per frame
@@ -31,55 +32,41 @@ public class Card : MonoBehaviour {
 
     void OnMouseOver()
     {
-        /*
-        if (Input.GetMouseButtonDown(1))
-        {
-            GameLogic.instance.cardLayout.setImage(cardImage);
-            GameLogic.instance.cardLayout.setText(cardName);
-            GameLogic.instance.cardLayout.pnlCard.SetActive(true);
-        }
-        */
-        if (Input.GetMouseButton(1))
-        {
-        	/*
-            GameLogic.instance.cardLayout.pnlCard.SetActive(true);//CardUI.enabled = true;
-            GameLogic.instance.cardLayout.setImage(cardImage);
-            GameLogic.instance.cardLayout.setText(cardName);
-            */
-            if (!visible) {
-	            GameLogic.instance.cardLayout.toggleImage(true, cardImage, cardName);
-
-                SoundControl.instance.playAudio("card", "pickup");
-	            //setAudio(0);
-	        	//playAudio();
-
-	        	visible = true;
-	        }
-
-        }
-        else {
-        	if (visible) {
-                //setAudio(1);
-                //playAudio();   
-
-                SoundControl.instance.playAudio("card", "place");
-                //GameLogic.instance.cardLayout.pnlCard.SetActive(false); //CardUI.enabled = false;	     		
-                GameLogic.instance.cardLayout.toggleImage(false);
-	        	visible = false;
-        	}
-        } 
+        checkCardImage();
     }
 
     void OnMouseExit()
     {
-    	if (visible) {
-            //setAudio(1);
-            //playAudio();        	
-            SoundControl.instance.playAudio("card", "place");
-            //GameLogic.instance.cardLayout.pnlCard.SetActive(false); //CardUI.enabled = false;	
-            GameLogic.instance.cardLayout.toggleImage(false);
-			visible = false;
-    	}
+        if (visible) toggleCardImage();
+    }
+
+
+    public void checkCardImage()
+    {
+        if (Input.GetMouseButton(1))
+        {
+            if (!visible) toggleCardImage();
+        }
+        else
+        {
+            if (visible) toggleCardImage();
+        }
+    }
+
+    public void toggleCardImage()
+    {
+        updateCardImage();
+        visible = !visible;
+    }
+
+    public void updateCardImage()
+    {
+        string audio;
+        if (visible) audio = "place";
+        else         audio = "pickup";
+
+        GameLogic.instance.cardLayout.toggleImage(!visible, cardImage, cardName);
+        SoundControl.instance.playAudio("card", audio);
     }
 
     public void setSides()
@@ -92,9 +79,9 @@ public class Card : MonoBehaviour {
 
     public void initCard()
     {
+        //Debug.Log("Card.initCard() <-- GL.Start()");
         //sides = new Side[dieSize];
-        cardInfo.randomizeValues();
-        Debug.Log("Card Start()");
+        if (randomizeStart) cardInfo.randomizeValues();
         numberSides = sides.Length;
 
         buildMesh(GameLogic.instance.cardLayout.mesh);
@@ -127,7 +114,7 @@ public class Card : MonoBehaviour {
 
     public void createTextureEditor(Mesh mesh)
     {
-        cardInfo.randomizeValues();
+        if (randomizeStart) cardInfo.randomizeValues();
         buildMesh(mesh);
     }
     

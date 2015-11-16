@@ -245,7 +245,7 @@ public class GameArea
 
     public GameArea(Transform t)
     {
-        Debug.Log("GameZone " + t.name + " starting");
+        //Debug.Log("GameZone " + t.name + " starting");
         areaHolder = t;
         areaName = t.name;
 
@@ -262,7 +262,7 @@ public class GameArea
                 break;
         }
 
-        Debug.Log("GameArea " + t.name + " created");
+        //Debug.Log("GameArea " + t.name + " created");
         createZones();
     }
 
@@ -334,7 +334,7 @@ public class GameZone
 
     public GameZone(Transform a, Transform z)
     {
-        Debug.Log("GameZone " + a.name + "/" + z.name + " starting");
+        //Debug.Log("GameZone " + a.name + "/" + z.name + " starting");
 
         zoneName = z.name;
         zone = z.GetComponentInChildren<Zone>();
@@ -350,7 +350,7 @@ public class GameZone
         zone.zoneName = holders.zoneHolder.name;
 
         checkIfCard();
-        Debug.Log("GameZone " + a.name + "/" + z.name + " created");
+        //Debug.Log("GameZone " + a.name + "/" + z.name + " created");
     }
 
     public string getName() { return zoneName; }

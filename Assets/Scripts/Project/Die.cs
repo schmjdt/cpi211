@@ -29,6 +29,10 @@ public class Die : MonoBehaviour, IComparable {
     public float validMargin = 0.45f;
     Vector3 localHitNormalized;
 
+    public Vector3 offsetMargin = new Vector3(.05f, 0, .05f);
+
+    bool showImage;
+
     bool localHit
     {
         get
@@ -69,24 +73,21 @@ public class Die : MonoBehaviour, IComparable {
 
 	}
 
-    void OnMouseOver() {
-        /*
-        if (Input.GetMouseButtonDown(1))
-        {
-            //if (Input.GetKeyDown("r"))
-            //{
-        		if (Input.GetKey(KeyCode.LeftShift)) {
-        			GameLogic.instance.rollSimilarDice(this);
-        		}
-        		else {
-                    SoundControl.instance.setAudio("dice", "rollS");
-                	//rollDie();
-        		}
-            //}
-        }
-        */
+    void OnMouseOver()
+    {
+        card.checkCardImage();
     }
 
+    void OnMouseExit()
+    {
+        if (card.visible) card.toggleCardImage();
+    }
+
+    void toggleImage()
+    {
+        GameLogic.instance.cardLayout.toggleImage(!showImage, card.cardImage, card.cardName);
+        
+    }
 
     void OnTriggerStay(Collider other)
     {
@@ -178,18 +179,26 @@ public class Die : MonoBehaviour, IComparable {
 
     public void offsetDie()
     {
-        float offsetX = UnityEngine.Random.Range(-.05f, .05f);
-        float offsetY = 0f;
-        float offsetZ = UnityEngine.Random.Range(-.05f, .05f);
+        float offsetX = UnityEngine.Random.Range(-offsetMargin.x/5, offsetMargin.x/5);
+        float offsetY = offsetMargin.y;
+        float offsetZ = UnityEngine.Random.Range(-offsetMargin.z/5, offsetMargin.z/5);
 
         offsetDie(offsetX, offsetY, offsetZ);
     }
 
     public void offsetDie(float x, float y, float z)
     {
-        this.transform.localPosition = new Vector3( x, 
-                                                    y, 
-                                                    z);
+        this.transform.localPosition = new Vector3(this.transform.localPosition.x + x,
+                                                   this.transform.localPosition.y + y,
+                                                   this.transform.localPosition.z + z);
+    }
+
+
+    public void moveDie(float x, float y, float z)
+    {
+        this.transform.localPosition = new Vector3(x,
+                                                   y,
+                                                   z);
     }
 
 
