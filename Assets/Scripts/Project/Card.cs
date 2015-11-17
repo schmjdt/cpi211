@@ -229,7 +229,7 @@ public class CardInfo
 
 public static class Sides
 {
-    public enum sideValue { E_1, E_2, C_112, C_232 };
+    public enum sideValue { E_1, E_2, C_112, C_232, REROLL };
     //static Side[] sides = new Side[3];
     static List<Side> sides = new List<Side>();
 
@@ -238,6 +238,8 @@ public static class Sides
         sides.Add(new Side(2));
         sides.Add(new Side(1, 1, 2));
         sides.Add(new Side(2, 3, 2));
+        sides.Add(new Side(0));
+        sides[sides.Count - 1].setStar(Abilities.eAbilityType.REROLL, 1);
         /*
         sides[0] = new Side(1);
         sides[1] = new Side(2);
@@ -248,23 +250,6 @@ public static class Sides
     public static Side getSide(int i) {
         return sides[i];
     }
-
-
-    public static sideValue getSideValue(int i)
-    {
-
-        switch(i)
-        {
-            case 1:
-                return sideValue.E_2;
-            case 2:
-                return sideValue.C_112;
-            case 3:
-                return sideValue.C_232;
-            default:
-                return sideValue.E_1;
-        }
-    }
 }
 
 
@@ -274,7 +259,9 @@ public class Side
     public enum eSideType { ENERGY, SUMMONABLE, CASTABLE };
 
     int energy, cost, attack, defense, level;
-    int star;
+
+    Abilities.eAbilityType star;
+    public int starValue;
 
     eSideType sideType;
 
@@ -299,7 +286,7 @@ public class Side
             sideType = eSideType.CASTABLE;
     }
 
-    public void setStar(int s) { star = s; }
+    public void setStar(Abilities.eAbilityType aT, int i) { star = aT; starValue = i; }
 
     public int getStat(eValueTypes vt) {
         switch (vt) {
@@ -308,8 +295,8 @@ public class Side
             case eValueTypes.ATTACK:     return attack;
             case eValueTypes.DEFENSE:    return defense;
             case eValueTypes.LEVEL:      return level;
-            case eValueTypes.STAR:       return star;
-            default:                    return 0;
+            case eValueTypes.STAR:       return (int)star;
+            default:                     return 0;
         }
     }
 
@@ -318,7 +305,41 @@ public class Side
     public int getAttack()  { return attack;    }
     public int getDefense() { return defense;   }
     public int getLevel()   { return level;     }
-    public int getStar()    { return star;      }
+    public Ability getStar() { return Abilities.abilities[(int)star]; }
 
     public eSideType getType() { return sideType;  }
+}
+
+public static class Abilities
+{
+    public enum eAbilityType { REROLL, EXTRA_DRAW, EXTRA_POINTS, CULL, REVIVE };
+
+    public static List<Ability> abilities = new List<Ability>();
+
+    public static void initAbilities()
+    {
+        abilities.Add(new Ability("ReRoll", "Allows player to reroll this and an additional die"));
+        abilities.Add(new Ability("Scry+", "Allows player to draw additional die"));
+        abilities.Add(new Ability("Score+", "Allows player to score additional points"));
+        abilities.Add(new Ability("Send", "Allows player to send a die from within Stored back to Stalls"));
+        abilities.Add(new Ability("Suppress", "Allows player to send defeated creature to Support"));
+    }
+}
+
+public class Ability
+{
+    public enum eAbilityTrigger { CAST, SCORE, ATTACK, DEFEATED, PASSIVE };
+
+    public string abilityName;
+    public string abilityDesc;
+
+    //public int abilityValue;
+
+    public eAbilityTrigger abilityTrigger;
+
+    public Ability(string n, string d)
+    {
+        abilityName = n;
+        abilityDesc = d;
+    }
 }

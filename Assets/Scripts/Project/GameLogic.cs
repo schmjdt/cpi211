@@ -40,7 +40,8 @@ public class GameLogic : MonoBehaviour
     public Card cardPrefab;
     public Die diePrefab;
 
-    public GameObject draggedObject = null;
+    //public GameObject draggedObject = null;
+    public Draggable draggedObject = null;
 
 
     public int sizeStartingMB = 4;
@@ -53,6 +54,8 @@ public class GameLogic : MonoBehaviour
     public CardLayout cardLayout;
 
     public RollValues rollValues;
+
+    public GameObject[] particleEffects;
 
     // Admin
     public bool isAdmin;
@@ -190,6 +193,9 @@ public class GameLogic : MonoBehaviour
 
         if (!GameState.newGame)
             stepLogic.checkStepButton();
+
+        if (stepLogic.currentStep == StepLogic.eSteps.SPEND)
+            updateGameState();
     }
 
     public void adminView()
@@ -222,6 +228,11 @@ public class GameLogic : MonoBehaviour
     public void updateStates()
     {
         stepLogic.updateStep();
+        updateGameState();
+    }
+
+    public void updateGameState()
+    {
         stepLogic.txtGame.text = getGameState();
     }
 
@@ -229,12 +240,32 @@ public class GameLogic : MonoBehaviour
     {
         return
             "Player: " + playerLogic.currentPlayer().getPlayerName() + "\n" +
-            "Round: " + GameState.cRound;
+            "Round: " + GameState.cRound + "\n" + 
+            "Spirit: " + playerLogic.cSpirit + "\n" + 
+            "Attack: " + playerLogic.attackValue;
     }
     
     public string getCurrentZoneS(string z)  { return getCurrentAreaS() + "/" + z;                          }
     public string getCurrentAreaS()          { return "area" + playerLogic.currentPlayer().getPlayerName(); }
-    
+
+    public void startScore()
+    {
+        // scoreable
+        Instantiate(particleEffects[1], GameObject.Find("area" + playerLogic.currentPlayer().getPlayerName() + "/zoneSummoned").transform.position, Quaternion.identity);
+    }
+
+    public void startAttack()
+    {
+        playerLogic.attack();
+        playerLogic.defend(playerLogic.attackValue);
+        Debug.Log("Attack: " + playerLogic.attackValue + " vs Defend: " + playerLogic.defenseValue);
+
+        if (!playerLogic.defendSuccessful)
+        {
+            // explosion
+            Instantiate(particleEffects[0], GameObject.Find("area" + playerLogic.nextPlayer().getPlayerName() + "/zoneSummoned").transform.position, Quaternion.identity);
+        }
+    }
 
     #region DIE
 
@@ -382,7 +413,8 @@ public class GameLogic : MonoBehaviour
         // know current step
 
         if (!draggedObject) return false;
-        Draggable drag = draggedObject.GetComponent<Draggable>();
+        //Draggable drag = draggedObject.GetComponent<Draggable>();
+        Draggable drag = draggedObject;
         if (!drag) return false;
         Zone dragFrom = drag.getParentZone();
 
@@ -391,7 +423,9 @@ public class GameLogic : MonoBehaviour
         //if (!d) return false;
         Side.eSideType dragType = d.getSideType();
 
-        string cArea = "areaPlayer" + (playerLogic.cPlayer + 1) + "/";
+        string cArea = "area" + (playerLogic.currentPlayer().getPlayerName()) + "/";
+        string nArea = "area" + (playerLogic.nextPlayer().getPlayerName()) + "/";
+
 
         switch ((int)stepLogic.currentStep)
         {
@@ -410,12 +444,16 @@ public class GameLogic : MonoBehaviour
                 if ((dragDrop == gameLayout.getZone(cArea + "zoneStored") &&
                      drag.getParentArea().name == "areaMarket") ||
                     (dragFrom == gameLayout.getZone(cArea + "zoneServicable") &&
-                    (   (dragDrop == gameLayout.getZone(cArea + "zoneSummoned") && (dragType == Side.eSideType.SUMMONABLE)) || 
+                    (   (dragDrop == gameLayout.getZone(cArea + "zoneSummoned") && (dragType == Side.eSideType.SUMMONABLE) && playerLogic.affordEnergy(d.getSideValue(Side.eValueTypes.COST))) || 
                         (dragDrop == gameLayout.getZone(cArea + "zoneSpent")    && (dragType == Side.eSideType.ENERGY)))))
                     isValid = true;
                 break;
             case 4: // STRIKE
-                isValid = false;
+                if (dragFrom == gameLayout.getZone(nArea + "zoneSummoned") &&
+                    dragDrop == gameLayout.getZone(nArea + "zoneStored"))
+                {
+                    isValid = true;
+                }
                 break;
             case 5: // SECURE
                 if (dragDrop == gameLayout.getZone(cArea + "zoneStored") &&
@@ -433,25 +471,62 @@ public class GameLogic : MonoBehaviour
         return isValid;
     }
 
-    public void dieDropped()
+    public void dieDropped(Zone z)
     {
+        bool soundPlayed = false;
         Die d = draggedObject.GetComponent<Die>();
-        gameLayout.checkZoneColor();
 
-
-
-        // Special Zone Cases (If drop is valid)
-        switch (draggedObject.transform.parent.parent.name)
+        string dropFrom = "", areaFrom = "";
+        if (z)
         {
+            dropFrom = z.zoneName;
+            areaFrom = z.holders.areaHolder.name;
+        }
+        string dropTo = draggedObject.getParentZone().zoneName;
+
+        gameLayout.checkZoneColor();
+        
+        // Special Zone Cases (If drop is valid)
+        
+        //switch (draggedObject.transform.parent.parent.name)
+        switch (dropTo)
+        {
+            case "zoneStored":
+                if (dropFrom == "zoneSummoned")
+                {
+                    playerLogic.defendAttack(d);
+                    Debug.Log("Defending!");
+                } else if (areaFrom == "areaMarket")
+                {
+                    playerLogic.updateEnergy(-d.card.cardInfo.cost);
+                    GameState.hasBought = true;
+                }
+                break;
+            case "zoneSpent":
+                if (dropFrom == "zoneServicable")
+                {
+                    playerLogic.updateEnergy(d.getSideValue(Side.eValueTypes.ENERGY));
+                    Debug.Log("Unlimited Powwwer!");
+                }
+                break;
+            case "zoneSummoned":
+                if (dropFrom == "zoneServicable")
+                {
+                    playerLogic.updateEnergy(-d.getSideValue(Side.eValueTypes.COST));
+                    Debug.Log("Summoning!");
+                }
+                break;
             case "zoneSupply":
                 //draggedObject
                 d.toggleVisibility(false);
                 SoundControl.instance.playAudio("dice", "drop_cup");
+                soundPlayed = true;
                 break;
             default:
-                SoundControl.instance.playAudio("dice", "drop_table");
                 break;
         }
+
+        if (!soundPlayed) SoundControl.instance.playAudio("dice", "drop_table");
 
         draggedObject = null;
     }
@@ -464,6 +539,8 @@ public class GameLogic : MonoBehaviour
 
         string zoneFrom, areaFrom;
 
+        Die d = drag.GetComponent<Die>();
+
 
         try {
             Debug.Log("Area: " + drag.getParentArea().name + " - " + getCurrentAreaS());
@@ -471,7 +548,7 @@ public class GameLogic : MonoBehaviour
             //      --- Won't work if want Defender to discard during STRIKE step ---
             if (drag.getParentArea().name != getCurrentAreaS() && drag.getParentArea().name != "areaMarket")
             {
-                return false;
+                //return false;
             }
             // Depending on step and zone, allow draggability
 
@@ -517,7 +594,9 @@ public class GameLogic : MonoBehaviour
                     }
                     break;
                 case 3:  // SPEND
-                    if (drag.getParentArea().name == "areaMarket")
+                    if (drag.getParentArea().name == "areaMarket" && 
+                        playerLogic.affordEnergy(d.card.cardInfo.cost) &&
+                        !GameState.hasBought)
                     {
                         canDrag = true;
                     }
@@ -527,7 +606,7 @@ public class GameLogic : MonoBehaviour
                         canDrag = true;
                     break;
                 case 4:  // STRIKE
-                    Debug.Log(playerLogic.startAttack());
+                    //Debug.Log(playerLogic.startAttack());
                     if (zoneFrom.Equals("zoneSummoned") && !areaFrom.Equals(getCurrentAreaS()))
                         canDrag = true;
                     break;
@@ -560,7 +639,8 @@ public class GameLogic : MonoBehaviour
         finally
         {
             if (canDrag)
-                draggedObject = drag.gameObject;
+                draggedObject = drag;
+                //draggedObject = drag.gameObject;
         }
 
         if (canDrag)
@@ -783,8 +863,15 @@ public class PlayerLogic
     public int cPlayer = 0;
     public int totalPlayers = 2;
     public Player[] players;
-    public int attackValue;
-    public int defenseValue;
+    
+
+    public int attackValue  = 0;
+    public int defenseValue = 0;
+    public int defenseLeft  = 0;
+    public bool defendSuccessful = false;
+
+    public int cSpirit = 0;
+
     // Add Market Vars:  # can buy at once (int), if can buy (bool)
 
     int cStart = 0;
@@ -808,6 +895,7 @@ public class PlayerLogic
     {
         CameraControl.instance.togglePlayerCam();
         GameState.resetAll();
+        resetValues();
 
         bool rBool = false;
         cPlayer = CommonLogic.cycleValue(cPlayer, totalPlayers, cStart);
@@ -816,11 +904,23 @@ public class PlayerLogic
         return rBool;
     }
 
+    void resetValues()
+    {
+        defendSuccessful = false;
+        cSpirit = 0;
+    }
+
     #region Score
 
     public bool checkWinCondition()
     {
         return (currentPlayer().score == GameState.winCondition);
+    }
+
+
+    public void updatePlayerScore(Player p, int s)
+    {
+        setPlayerScore(p, p.score + s);
     }
 
     public void setPlayerScore(Player p, int s)
@@ -841,27 +941,27 @@ public class PlayerLogic
 
     public void updatePlayerScore(int s)
     {
-        int mod;
-
+        int mod = -1;
         int p = cPlayer;
+        int ps;
 
-        mod = -1;
-        if (p == 1)
-            mod = 1;
-        
-        setPlayerScore(currentPlayer(), s);
+        if (p == 1) mod = 1;
 
-        if (currentPlayer().score >= GameState.winCondition)
+        updatePlayerScore(currentPlayer(), s);
+        ps = currentPlayer().score;
+
+        if (ps >= GameState.winCondition)
         {
             currentPlayer().score = GameState.winCondition;
+            ps = GameState.winCondition;
             Debug.Log(currentPlayer().getPlayerName() + " Wins!");
         }
 
 
         Transform d = GameLogic.instance.gameLayout.scoreTokens[p];
-        d.localPosition = new Vector3(GameLogic.instance.gameLayout.positScores[currentPlayer().score + 1].localPosition.x + mod * (.004f + UnityEngine.Random.Range(0f, .004f)),
+        d.localPosition = new Vector3(GameLogic.instance.gameLayout.positScores[ps + 1].localPosition.x + mod * (.004f + UnityEngine.Random.Range(0f, .004f)),
                                             d.localPosition.y,
-                                            GameLogic.instance.gameLayout.positScores[currentPlayer().score + 1].localPosition.z + mod * (.004f + UnityEngine.Random.Range(0f, .004f)));
+                                            GameLogic.instance.gameLayout.positScores[ps + 1].localPosition.z + mod * (.004f + UnityEngine.Random.Range(0f, .004f)));
         
 
         GameLogic.instance.stepLogic.txtScore.text = getScoreDesc();
@@ -882,18 +982,48 @@ public class PlayerLogic
     public int getAttackValue() { return attackValue; }
     public int getDefenseValue() { return defenseValue; }
 
-    public string startAttack()
-    {
-        attack();
-        defend(attackValue);
-        return "Attack: " + attackValue + " vs Defend: " + defenseValue;
-    }
     
     public void defend(int attackValue)
-    { 
+    {
+        int dDefense;
+        defenseLeft = attackValue;
+        defendSuccessful = false;
         //defenseValue = getDiceValue(getDice(), Side.valueTypes.DEFENSE); Die[] sDice = getDice(); Array.Sort(sDice);
-        defenseValue = DieLogic.getDiceValue(GameLogic.instance.gameLayout.getDiceInZoneNext("zoneSummoned"), Side.eValueTypes.DEFENSE);
-        Debug.Log(nextPlayer().getPlayerName() + " defends against " + defenseValue + " damage!");
+        //defenseValue = DieLogic.getDiceValue(GameLogic.instance.gameLayout.getDiceInZoneNext("zoneSummoned"), Side.eValueTypes.DEFENSE);
+        
+        Die[] dice = GameLogic.instance.gameLayout.getDiceInZoneNext("zoneSummoned");
+
+        if (dice.Length > 0)
+        {
+            foreach (Die die in dice)
+            {
+                dDefense = DieLogic.getDieValue(die, Side.eValueTypes.DEFENSE);
+                if (dDefense > attackValue)
+                {
+                    //defenseLeft = 0;
+                    defendSuccessful = true;
+                    break;
+                }
+            }
+
+            if (defendSuccessful)
+                Debug.Log(nextPlayer().getPlayerName() + " can fully defend against " + attackValue + " damage!");
+        } else
+        {
+            defendSuccessful = true;
+            Debug.Log(nextPlayer().getPlayerName() + " has noone to use to defend");
+        }
+        
+
+    }
+
+    public void defendAttack(Die die)
+    {
+        int dDefense = DieLogic.getDieValue(die, Side.eValueTypes.DEFENSE);
+        defenseLeft -= dDefense;
+
+        if (defenseLeft <= 0 || GameLogic.instance.gameLayout.getDiceInZoneNext("zoneSummoned").Length == 0)
+            defendSuccessful = true;
     }
 
     public void scoreDice()
@@ -902,9 +1032,19 @@ public class PlayerLogic
         updatePlayerScore(s);
     }
 
-    #endregion
+    
+    public void updateEnergy(int energy) { cSpirit += energy; }
+    public bool affordEnergy(int energy)
+    {
+        if (cSpirit >= energy)
+        {
+            return true;
+        }
+        return false;
+    }
 
-};
+    #endregion
+}
 
 [System.Serializable]
 public class StepLogic
@@ -956,7 +1096,6 @@ public class StepLogic
             case 3:  // SPEND
                 break;
             case 4:  // STRIKE
-                Debug.Log(GameLogic.instance.playerLogic.startAttack());
                 break;
             case 5:  // SECURE
                 break;
@@ -981,7 +1120,7 @@ public class StepLogic
             case 3:  // SPEND
                 break;
             case 4:  // STRIKE
-                Debug.Log(GameLogic.instance.playerLogic.startAttack());
+                GameLogic.instance.startAttack();
                 break;
             case 5:  // SECURE
                 btnStep.GetComponentInChildren<Text>().text = "Shift";
@@ -1025,7 +1164,8 @@ public class StepLogic
                 break;
             case 4:  // STRIKE
                 // If the defense value of opponent is down to 0
-                rBool = true;
+                if (GameLogic.instance.playerLogic.defendSuccessful)
+                    rBool = true;
                 break;
             case 5:  // SECURE
                 if (!GameLogic.instance.gameLayout.isDiceInZone("zoneServicable") &&
@@ -1125,6 +1265,8 @@ public static class DieLogic
     {
         int val = 0;
         foreach (Die die in dice) val += getDieScore(die);
+
+        Debug.Log("Scoring " + dice.Length + " dice for " + val + " points");
         return val;
     }
     public static int getDieScore(Die die) { return die.card.cardInfo.score; }

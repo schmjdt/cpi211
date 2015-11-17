@@ -142,8 +142,10 @@ public class Draggable : MonoBehaviour {
         Cursor.visible = true;
         GetComponent<Rigidbody>().isKinematic = false;
 
+        Zone previousZone = null;
         if (getParentZone() != zonePlaceholder)
         {
+            previousZone = getParentZone();
             this.originalParent = zonePlaceholder.holders.diceHolder;
             transform.position = new Vector3(transform.position.x,
                                              transform.position.y - liftOffset,
@@ -162,7 +164,7 @@ public class Draggable : MonoBehaviour {
 
         canDrag = false;
 
-        GameLogic.instance.dieDropped();
+        GameLogic.instance.dieDropped(previousZone);
     }
 
     public void setPlaceHolderParent()

@@ -179,6 +179,13 @@ public class CameraControl : MonoBehaviour
             origRot = transform.rotation;
 
             cameraMovement = 0;
+
+            // Remind player to Score Dice!
+            if (!GameLogic.instance.stepLogic.stepButtonInteractable())
+            {
+                GameLogic.instance.startScore();
+                // Play Audio?
+            }
         }
     }
     
