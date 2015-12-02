@@ -1,6 +1,10 @@
 ﻿using UnityEngine;
 using System.Collections;
 
+/*
+ Thanks to Quill (http://quill18.com/unity_tutorials/) and his TileMap tutorials for the idea!
+ */
+
 public class MeshCustom
 {
 

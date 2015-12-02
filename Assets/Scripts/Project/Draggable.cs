@@ -1,5 +1,9 @@
 ﻿using UnityEngine;
 
+/*
+ Thanks to Quill (http://quill18.com/unity_tutorials/) and his Drag & Drop tutorials for the idea!
+ */
+
 public class Draggable : MonoBehaviour {
 
     // Dragging Vars -----------------------------------
