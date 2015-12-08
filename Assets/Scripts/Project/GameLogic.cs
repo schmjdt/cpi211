@@ -123,6 +123,7 @@ public class GameLogic : MonoBehaviour
             adminTogglePause();
         }
 
+		GameState.resetAll();
 
         Debug.Log("Game Started");
     }
@@ -566,6 +567,23 @@ public class GameLogic : MonoBehaviour
                         playerLogic.scoreDice();
                         moveDice(getCurrentZoneS("zoneSummoned"),
                                  getCurrentZoneS("zoneStored"));
+                                 
+					
+						if (playerLogic.currentPlayer().score == GameState.winCondition) {
+						
+							Debug.Log(playerLogic.currentPlayer().getPlayerName() + " Wins!");
+							
+							GameMenu[] menus = GameObject.Find("GameMenu").GetComponents<GameMenu>();
+							
+							foreach (GameMenu item in menus ) {
+								if (item.menuPanel.name == "GameOver") {
+									item.menuPanel.SetActive(true);
+									break;
+								}
+							}
+							GameObject.Find("txtGameOver").GetComponent<Text>().text = playerLogic.currentPlayer().getPlayerName() + " Wins!";
+							GameState.isPaused = true;
+						}
                         canDrag = false;
                     }
                     break;
@@ -954,7 +972,6 @@ public class PlayerLogic
         {
             currentPlayer().score = GameState.winCondition;
             ps = GameState.winCondition;
-            Debug.Log(currentPlayer().getPlayerName() + " Wins!");
         }
 
 

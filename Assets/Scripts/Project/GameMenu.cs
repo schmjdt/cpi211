@@ -4,8 +4,8 @@ using System.Collections;
 
 [ExecuteInEditMode]
 public class GameMenu : MonoBehaviour {
-    
-    public GameObject menuPanel;
+	
+	public GameObject menuPanel;
     public bool panelOpen;
     public KeyCode menuHotkey;
 
